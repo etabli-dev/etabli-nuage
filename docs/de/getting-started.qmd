@@ -14,7 +14,7 @@ App-Passwörter ersetzen das Hauptpasswort und können pro Gerät widerrufen wer
 
 1. In Nextcloud einloggen.
 2. Avatar oben rechts → **Persönliche Einstellungen** → **Sicherheit**.
-3. Unter **Geräte & Sitzungen**: Name vergeben (z.B. „Etabli Nuage — iPhone"), **Neues App-Passwort erstellen** klicken.
+3. Unter **Geräte & Sitzungen**: Name vergeben (z.B. „Établi Nuage — iPhone"), **Neues App-Passwort erstellen** klicken.
 4. URL (`https://cloud.example.org`) und das angezeigte App-Passwort merken — letzteres wird nur einmal angezeigt.
 
 ## App einrichten

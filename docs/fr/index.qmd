@@ -1,5 +1,5 @@
 ---
-title: "Etabli Nuage"
+title: "Établi Nuage"
 sidebar: fr
 ---
 
@@ -9,7 +9,7 @@ sidebar: fr
 
 > Votre propre Nextcloud — fichiers, contacts, calendrier, vérificateur de liens — dans une seule appli.
 
-**Statut : en développement.** L'appli regroupe quatre modules Nextcloud sous un même compte. Fichiers (WebDAV) et le Vérificateur de liens fonctionnent déjà en aller-retour ; Contacts (CardDAV) et Calendrier (CalDAV) sont en cours. Etabli Nuage ne parle qu'à l'instance Nextcloud configurée et n'est pas affilié à Nextcloud GmbH.
+**Statut : en développement.** L'appli regroupe quatre modules Nextcloud sous un même compte. Fichiers (WebDAV) et le Vérificateur de liens fonctionnent déjà en aller-retour ; Contacts (CardDAV) et Calendrier (CalDAV) sont en cours. Établi Nuage ne parle qu'à l'instance Nextcloud configurée et n'est pas affilié à Nextcloud GmbH.
 
 ![Nuage — vue principale sur Android après connexion.](../_screens/android-main.png){width=320}
 
@@ -30,10 +30,14 @@ Aucun outil d'analyse, aucun SDK tiers. L'authentification se fait sur votre ser
 
 ## Installation
 
-| Plateforme | Distribution |
-|------------|--------------|
-| iOS        | App Store |
-| Android    | Google Play et F-Droid (dépôt principal) |
+Établi Nuage est **en cours de développement actif** (les Contacts/CardDAV et le Calendrier/CalDAV sont encore en cours de finition). Il n'existe pas encore de version App Store, Google Play ou F-Droid.
+
+| Canal | Statut |
+|-------|--------|
+| Android (APK) | **Version de développement** via [GitHub Releases](https://github.com/etabli-dev/etabli-nuage/releases) |
+| App Store (iOS) | prévu — pas encore disponible |
+| Google Play | prévu — pas encore disponible |
+| F-Droid | prévu — pas encore disponible |
 
 Détails : voir [Premiers pas](getting-started.qmd).
 

@@ -3,7 +3,7 @@ title: "Fonctionnalités"
 sidebar: fr
 ---
 
-Etabli Nuage regroupe quatre modules sous un compte Nextcloud unique. Chaque module reste dans son onglet ; la connexion vaut pour tous.
+Établi Nuage regroupe quatre modules sous un compte Nextcloud unique. Chaque module reste dans son onglet ; la connexion vaut pour tous.
 
 ![Nuage — vue principale avec les quatre onglets de modules.](../_screens/android-main.png){width=320}
 
@@ -63,6 +63,8 @@ Prévu : lecture et écriture des calendriers sous `/remote.php/dav/calendars/<u
 
 | Canal | App |
 |-------|-----|
-| App Store (iOS) · Google Play (Android) | Etabli Nuage |
-| F-Droid — dépôt principal | Etabli Nuage |
+| Android (APK) — **version de développement** | [GitHub Releases](https://github.com/etabli-dev/etabli-nuage/releases) |
+| App Store (iOS) | prévu — pas encore disponible |
+| Google Play (Android) | prévu — pas encore disponible |
+| F-Droid — dépôt principal | prévu — pas encore disponible |
 | Code source | [`etabli-dev/etabli-nuage`](https://github.com/etabli-dev/etabli-nuage) |

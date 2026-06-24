@@ -1,5 +1,5 @@
 ---
-title: "Etabli Nuage"
+title: "Établi Nuage"
 sidebar: de
 ---
 
@@ -9,7 +9,7 @@ sidebar: de
 
 > Dein eigenes Nextcloud — Dateien, Kontakte, Kalender, Link-Prüfer — in einer App.
 
-**Status: in Entwicklung.** Die App bündelt vier Nextcloud-Module unter einem Konto. Dateien (WebDAV) und der Link-Prüfer laufen bereits round-trip-fähig; Kontakte (CardDAV) und Kalender (CalDAV) sind in Arbeit. Etabli Nuage spricht ausschließlich mit der konfigurierten Nextcloud-Instanz und ist nicht mit der Nextcloud GmbH affiliiert.
+**Status: in Entwicklung.** Die App bündelt vier Nextcloud-Module unter einem Konto. Dateien (WebDAV) und der Link-Prüfer laufen bereits round-trip-fähig; Kontakte (CardDAV) und Kalender (CalDAV) sind in Arbeit. Établi Nuage spricht ausschließlich mit der konfigurierten Nextcloud-Instanz und ist nicht mit der Nextcloud GmbH affiliiert.
 
 ![Nuage — Hauptansicht auf Android nach der Anmeldung.](../_screens/android-main.png){width=320}
 
@@ -30,10 +30,14 @@ Keine Analyse-Tools, keine Drittanbieter-SDKs. Anmeldung erfolgt am eigenen self
 
 ## Installation
 
-| Plattform | Bezug |
-|-----------|-------|
-| iOS       | App Store |
-| Android   | Google Play und F-Droid (Haupt-Repository) |
+Établi Nuage befindet sich **in aktiver Entwicklung** (Kontakte/CardDAV und Kalender/CalDAV werden noch fertiggestellt). Es gibt noch keine Veröffentlichung im App Store, bei Google Play oder F-Droid.
+
+| Kanal | Status |
+|-------|--------|
+| Android (APK) | **Entwicklungs-Build** über [GitHub Releases](https://github.com/etabli-dev/etabli-nuage/releases) |
+| App Store (iOS) | geplant — noch nicht verfügbar |
+| Google Play | geplant — noch nicht verfügbar |
+| F-Droid | geplant — noch nicht verfügbar |
 
 Details siehe [Erste Schritte](getting-started.qmd).
 

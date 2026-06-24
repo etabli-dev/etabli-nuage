@@ -14,7 +14,7 @@ Les mots de passe d'application remplacent le mot de passe principal et peuvent 
 
 1. Se connecter à Nextcloud.
 2. Avatar en haut à droite → **Paramètres personnels** → **Sécurité**.
-3. Sous **Appareils et sessions** : saisir un nom (p. ex. « Etabli Nuage — iPhone ») puis cliquer **Créer un nouveau mot de passe d'application**.
+3. Sous **Appareils et sessions** : saisir un nom (p. ex. « Établi Nuage — iPhone ») puis cliquer **Créer un nouveau mot de passe d'application**.
 4. Noter l'URL (`https://cloud.example.org`) et le mot de passe d'application affiché — ce dernier n'apparaît qu'une fois.
 
 ## Configurer l'appli

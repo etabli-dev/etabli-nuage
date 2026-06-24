@@ -3,7 +3,7 @@ title: "Funktionen"
 sidebar: de
 ---
 
-Etabli Nuage bündelt vier Module unter einem Nextcloud-Konto. Jedes Modul bleibt in seinem Tab; die Anmeldung gilt für alle.
+Établi Nuage bündelt vier Module unter einem Nextcloud-Konto. Jedes Modul bleibt in seinem Tab; die Anmeldung gilt für alle.
 
 ![Nuage — Hauptansicht mit vier Modul-Tabs.](../_screens/android-main.png){width=320}
 
@@ -63,6 +63,8 @@ Geplant: Kalender unter `/remote.php/dav/calendars/<user>/` lesen und schreiben 
 
 | Kanal | App |
 |-------|-----|
-| App Store (iOS) · Google Play (Android) | Etabli Nuage |
-| F-Droid — Haupt-Repository | Etabli Nuage |
+| Android (APK) — **Entwicklungs-Build** | [GitHub Releases](https://github.com/etabli-dev/etabli-nuage/releases) |
+| App Store (iOS) | geplant — noch nicht verfügbar |
+| Google Play (Android) | geplant — noch nicht verfügbar |
+| F-Droid — Haupt-Repository | geplant — noch nicht verfügbar |
 | Quellcode | [`etabli-dev/etabli-nuage`](https://github.com/etabli-dev/etabli-nuage) |

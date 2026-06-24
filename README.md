@@ -1,12 +1,12 @@
-# Etabli Nuage
+# Établi Nuage
 
 > Your Nextcloud — files, contacts, calendar — in one app.
 
-`iOS` `Android` · Apache-2.0 · Part of the [Etabli Suite](https://github.com/etabli-dev)
+`iOS` `Android` · Apache-2.0 · Part of the [Établi Suite](https://github.com/etabli-dev)
 
 > **Note:** expanded from EtabliProbe (was a WebDAV link checker; now the link-checker is one module of a full Nextcloud client).
 
-Etabli Nuage is a unified client for your self-hosted Nextcloud server. One account, four synced modules: Files (WebDAV browse/upload/download), Contacts (CardDAV), Calendar (CalDAV), and a Link Checker that probes a CSV of URLs and syncs result logs back to your server. Talks only to your own Nextcloud instance; credentials live in the platform secure store. (Not affiliated with Nextcloud GmbH.)
+Établi Nuage is a unified client for your self-hosted Nextcloud server. One account, four synced modules: Files (WebDAV browse/upload/download), Contacts (CardDAV), Calendar (CalDAV), and a Link Checker that probes a CSV of URLs and syncs result logs back to your server. Talks only to your own Nextcloud instance; credentials live in the platform secure store. (Not affiliated with Nextcloud GmbH.)
 
 ## Modules
 
@@ -21,8 +21,12 @@ Each module is independently navigable but shares a single authenticated session
 
 ## Availability
 
-- **Status:** in development — Files + Link Checker working; Contacts (CardDAV) and Calendar (CalDAV) modules being built.
-- **App Store (iOS) / Google Play / F-Droid:** planned once all four modules ship.
+Établi Nuage is **under active development** (Contacts/CardDAV and Calendar/CalDAV are still being finished). There are no App Store, Google Play or F-Droid releases yet.
+
+- **Android:** install the current **development build** as a signed **APK** from **[GitHub Releases](../../releases)**.
+- **App Store (iOS):** planned — not yet available.
+- **Google Play:** planned — not yet available.
+- **F-Droid:** planned — not yet available.
 
 ## Privacy
 
@@ -46,11 +50,11 @@ iOS: SwiftUI + URLSession (WebDAV/CalDAV/CardDAV), Keychain. Android: Compose, O
 
 ## Support development
 
-- 💚 **[Liberapay](https://liberapay.com/rabanheller/)** — recurring, 0% commission, shown on F-Droid.
+- 💚 **[Liberapay](https://liberapay.com/rabanheller/)** — recurring, 0% commission, to be shown on the F-Droid listing once published.
 - ☕ [Buy Me a Coffee](https://buymeacoffee.com/rabanheller) — one-off tip (also the in-app link on iOS/Android).
 
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
-Copyright 2026 Raban Heller.
+Copyright 2026 R. Heller.

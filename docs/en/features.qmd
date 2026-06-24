@@ -3,7 +3,7 @@ title: "Features"
 sidebar: en
 ---
 
-Etabli Nuage bundles four modules under a single Nextcloud account. Each module stays in its own tab; sign-in covers all of them.
+Établi Nuage bundles four modules under a single Nextcloud account. Each module stays in its own tab; sign-in covers all of them.
 
 ![Nuage — main view with the four module tabs.](../_screens/android-main.png){width=320}
 
@@ -63,6 +63,8 @@ Planned: read and write calendars under `/remote.php/dav/calendars/<user>/` (iCa
 
 | Channel | App |
 |---------|-----|
-| App Store (iOS) · Google Play (Android) | Etabli Nuage |
-| F-Droid — main repository | Etabli Nuage |
+| Android (APK) — **development build** | [GitHub Releases](https://github.com/etabli-dev/etabli-nuage/releases) |
+| App Store (iOS) | planned — not yet available |
+| Google Play (Android) | planned — not yet available |
+| F-Droid — main repository | planned — not yet available |
 | Source code | [`etabli-dev/etabli-nuage`](https://github.com/etabli-dev/etabli-nuage) |

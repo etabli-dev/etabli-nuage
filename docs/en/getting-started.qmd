@@ -14,7 +14,7 @@ App passwords replace the main password and can be revoked per device.
 
 1. Sign in to Nextcloud.
 2. Avatar in the top right → **Personal Settings** → **Security**.
-3. Under **Devices & sessions**: enter a name (e.g. "Etabli Nuage — iPhone") and click **Create new app password**.
+3. Under **Devices & sessions**: enter a name (e.g. "Établi Nuage — iPhone") and click **Create new app password**.
 4. Note the URL (`https://cloud.example.org`) and the displayed app password — the latter is shown only once.
 
 ## Configure the app

@@ -1,4 +1,4 @@
-// Copyright 2026 Raban Heller
+// Copyright 2026 R. Heller
 // SPDX-License-Identifier: Apache-2.0
 
 // Deprecated — kept as a stub so any stale references still compile. The
