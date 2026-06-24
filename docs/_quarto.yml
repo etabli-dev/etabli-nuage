@@ -29,12 +29,12 @@ website:
     logo-href: index.html
     title: false
     right:
-      - text: "DE"
-        href: de/index.qmd
       - text: "EN"
         href: en/index.qmd
       - text: "FR"
         href: fr/index.qmd
+      - text: "DE"
+        href: de/index.qmd
       - icon: github
         text: "Code"
         href: "https://github.com/etabli-dev/etabli-nuage"
