@@ -3,68 +3,34 @@ title: "Funktionen"
 sidebar: de
 ---
 
-Établi Nuage bündelt vier Module unter einem Nextcloud-Konto. Jedes Modul bleibt in seinem Tab; die Anmeldung gilt für alle.
+Établi Nuage ist ein nativer Client für eine selbst gehostete Nextcloud-Instanz. Die App spricht ausschließlich mit dem Server, den du angibst — kein zentraler Dienst, kein Dritter dazwischen. Die App befindet sich **in Entwicklung**: Dateien (WebDAV) und der Link-Prüfer laufen bereits round-trip-fähig, während Kontakte (CardDAV) und Kalender (CalDAV) noch fertiggestellt werden.
 
-![Nuage — Hauptansicht mit vier Modul-Tabs.](../_screens/android-main.png){width=320}
+Die folgenden Abbildungen sind echte Screenshots des v0.1.0-Builds auf einem Android-Emulator. Solange kein Server konfiguriert ist, bleibt die App bewusst im Zustand „nicht verbunden" und verweist auf die Einstellungen — vor der Verbindung wird nichts abgerufen.
 
-## Modulübersicht
+## Nicht verbunden — der Ausgangszustand
 
-| Modul | Status | Zweck |
-|-------|--------|-------|
-| **Dateien** | round-trip-fähig | WebDAV-Browser für deine Nextcloud-Dateien. |
-| **Link-Prüfer** | round-trip-fähig | Eine CSV mit URLs prüfen und die Ergebnisse zurück in die Nextcloud schreiben. |
-| **Kontakte** | *in Entwicklung* | CardDAV — wird zur produktiven Reife geführt. |
-| **Kalender** | *in Entwicklung* | CalDAV — wird zur produktiven Reife geführt. |
+Beim ersten Start ist kein Nextcloud-Server konfiguriert, daher zeigt der Start-Tab den Zustand **nicht verbunden**. Er verwendet die terminalartige Breadcrumb der Suite (`~/probe/source`) und macht den nächsten Schritt deutlich: eine lokale CSV wählen oder Server und Anmeldedaten in den Einstellungen hinterlegen, bevor etwas aus der Nextcloud abgerufen wird. Bis zur Verbindung verlässt nichts das Gerät.
 
-## Dateien (WebDAV)
+![Start — nicht verbunden: lokale CSV wählen oder zuerst die Nextcloud-Anmeldedaten in den Einstellungen hinterlegen.](../_screens/0.1.0/01-login.png){width=320}
 
-| Aktion | Verfügbar |
-|--------|-----------|
-| Verzeichnis-Browse | ✓ |
-| Datei-Download (Cache + Teilen) | ✓ |
-| Upload (aus Datei-App / Foto-Bibliothek) | ✓ |
-| Umbenennen, Verschieben, Löschen | ✓ |
-| Konflikt-Erkennung beim Upload | ✓ |
+## Einstellungen — Server und Anmeldedaten
 
-Endpunkt: `https://<server>/remote.php/dav/files/<user>/`.
+In den **Einstellungen** trägst du die URL deiner Nextcloud-Instanz und deine Anmeldedaten ein, ebenso die Lauf-Optionen des Link-Prüfers (Prüfmodus, Nutzungsprofil, Zugriffsmaske, Höflichkeit / Verzögerung zwischen Anfragen). Sobald ein erreichbarer Server und ein gültiges App-Passwort vorliegen, spricht die App direkt mit deiner Instanz. Die Anmeldedaten liegen im sicheren Plattform-Speicher (Android EncryptedSharedPreferences) und gehen ausschließlich an die konfigurierte Instanz.
 
-## Link-Prüfer
+![Einstellungen — Server und Anmeldedaten sowie die Lauf-Optionen des Link-Prüfers.](../_screens/0.1.0/02-settings.png){width=320}
 
-Aus EtabliProbe übernommen und auf das Nextcloud-Backend ausgerichtet.
+## Backend-abhängige Ansichten
 
-![Link-Prüfer — Vorgängermodul EtabliProbe: Quellen-Liste.](../_screens/ios-probe-source.png){width=320}
-
-![Link-Prüfer — Vorgängermodul EtabliProbe: geplanter Lauf.](../_screens/ios-probe-launch.png){width=320}
-
-| Schritt | Was passiert |
-|--------|--------------|
-| Eingabe-CSV laden | aus der Datei-App oder vom Nextcloud-Server. |
-| URLs prüfen | HEAD/GET pro URL, HTTP-Status, Final-URL nach Redirects, Antwortzeit. |
-| Ergebnis | Tabellarisch in der App, mit Filter nach Status (2xx/3xx/4xx/5xx). |
-| Log-Sync | Ergebnis-Log als CSV zurück in einen konfigurierbaren Nextcloud-Ordner. |
-
-## Kontakte (CardDAV) — *in Entwicklung*
-
-Geplant: Adressbücher unter `/remote.php/dav/addressbooks/users/<user>/` lesen und schreiben (vCard 3 / 4), Liste + Detail, Suche. Solange der Round-Trip noch nicht durchgängig sicher ist, bleibt das Modul ausdrücklich als „in Entwicklung" markiert.
-
-## Kalender (CalDAV) — *in Entwicklung*
-
-Geplant: Kalender unter `/remote.php/dav/calendars/<user>/` lesen und schreiben (iCalendar VEVENT), Monats- und Listen-Ansicht. Wiederkehrende Termine (RRULE) sind der aufwändigste Teil und der Grund, das Modul nicht voreilig als fertig zu deklarieren.
-
-## Auth & Netzwerk
-
-| Aspekt | Verhalten |
-|--------|-----------|
-| Auth | HTTP Basic mit App-Passwort (Nextcloud-Standard). |
-| Endpunkt | ausschließlich die konfigurierte Nextcloud-URL. |
-| Sonstige Hosts | werden nicht kontaktiert; einzig vom Link-Prüfer angefragte URLs gehen explizit auf vom Nutzer eingespeiste Ziele. |
+Die Datenansichten — Durchsuchen und Verwalten von Dateien, die Live-Ergebnisse des Link-Prüfers sowie die noch folgenden Module Kontakte und Kalender — erfordern eine **erreichbare Nextcloud-Instanz und gültige Anmeldedaten**. Dieser Aufnahmelauf hatte keine; diese Ansichten werden hier daher bewusst **nicht nachgestellt**. Sie werden erreichbar, sobald du in den Einstellungen einen Server verbindest; eine künftige Aufnahme gegen eine Test-Nextcloud-Instanz erweitert diese Seite um die echten Datenansichten.
 
 ## Bezug
 
+Établi Nuage ist derzeit ein **Entwicklungs-Build ausschließlich für Android**: ein signiertes APK, das mit der Version v0.1.0 veröffentlicht wird.
+
 | Kanal | App |
 |-------|-----|
-| Android (APK) — **Entwicklungs-Build** | [GitHub Releases](https://github.com/etabli-dev/etabli-nuage/releases) |
+| Android (APK) — **Entwicklungs-Build** | [Version v0.1.0](https://github.com/etabli-dev/etabli-nuage/releases/tag/v0.1.0) |
 | App Store (iOS) | geplant — noch nicht verfügbar |
 | Google Play (Android) | geplant — noch nicht verfügbar |
-| F-Droid — Haupt-Repository | geplant — noch nicht verfügbar |
+| F-Droid | geplant — noch nicht verfügbar |
 | Quellcode | [`etabli-dev/etabli-nuage`](https://github.com/etabli-dev/etabli-nuage) |

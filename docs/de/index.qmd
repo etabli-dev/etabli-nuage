@@ -11,7 +11,7 @@ sidebar: de
 
 **Status: in Entwicklung.** Die App bündelt vier Nextcloud-Module unter einem Konto. Dateien (WebDAV) und der Link-Prüfer laufen bereits round-trip-fähig; Kontakte (CardDAV) und Kalender (CalDAV) sind in Arbeit. Établi Nuage spricht ausschließlich mit der konfigurierten Nextcloud-Instanz und ist nicht mit der Nextcloud GmbH affiliiert.
 
-![Nuage — Hauptansicht auf Android nach der Anmeldung.](../_screens/android-main.png){width=320}
+![Nuage auf Android — der Start im Zustand „nicht verbunden", bevor ein Server konfiguriert ist.](../_screens/0.1.0/01-login.png){width=320}
 
 ## Wer profitiert davon
 

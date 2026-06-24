@@ -11,7 +11,7 @@ sidebar: en
 
 **Status: in development.** The app bundles four Nextcloud modules under one account. Files (WebDAV) and the Link Checker already round-trip; Contacts (CardDAV) and Calendar (CalDAV) are in progress. Établi Nuage only talks to the configured Nextcloud instance and is not affiliated with Nextcloud GmbH.
 
-![Nuage — main view on Android after sign-in.](../_screens/android-main.png){width=320}
+![Nuage on Android — the not-connected home before a server is configured.](../_screens/0.1.0/01-login.png){width=320}
 
 ## Who benefits
 

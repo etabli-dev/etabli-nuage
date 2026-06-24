@@ -3,68 +3,34 @@ title: "Fonctionnalités"
 sidebar: fr
 ---
 
-Établi Nuage regroupe quatre modules sous un compte Nextcloud unique. Chaque module reste dans son onglet ; la connexion vaut pour tous.
+Établi Nuage est un client natif pour une instance Nextcloud auto-hébergée. Il ne parle qu'au serveur que vous lui indiquez — pas de service central, aucun tiers entre les deux. L'appli est **en développement** : Fichiers (WebDAV) et le Vérificateur de liens fonctionnent déjà en aller-retour, tandis que Contacts (CardDAV) et Calendrier (CalDAV) sont encore en cours de finition.
 
-![Nuage — vue principale avec les quatre onglets de modules.](../_screens/android-main.png){width=320}
+Les figures ci-dessous sont de vraies captures d'écran de la version v0.1.0 sur un émulateur Android. Tant qu'aucun serveur n'est configuré, l'appli reste volontairement dans un état « non connecté » et vous renvoie vers les Réglages — rien n'est récupéré avant la connexion.
 
-## Vue d'ensemble des modules
+## Non connecté — l'état de départ
 
-| Module | Statut | Objet |
-|--------|--------|-------|
-| **Fichiers** | aller-retour OK | navigateur WebDAV pour vos fichiers Nextcloud. |
-| **Vérificateur de liens** | aller-retour OK | vérifier une CSV d'URL et écrire les résultats dans Nextcloud. |
-| **Contacts** | *en développement* | CardDAV — amené à maturité. |
-| **Calendrier** | *en développement* | CalDAV — amené à maturité. |
+Au premier lancement, aucun serveur Nextcloud n'est configuré : l'onglet d'accueil affiche donc un état **non connecté**. Il utilise le fil d'Ariane de style terminal de la suite (`~/probe/source`) et rend l'étape suivante explicite : choisir une CSV locale, ou renseigner le serveur et les identifiants dans les Réglages avant de récupérer quoi que ce soit depuis Nextcloud. Rien ne quitte l'appareil tant que vous n'êtes pas connecté.
 
-## Fichiers (WebDAV)
+![Accueil — non connecté : choisir une CSV locale ou renseigner d'abord les identifiants Nextcloud dans les Réglages.](../_screens/0.1.0/01-login.png){width=320}
 
-| Action | Disponible |
-|--------|------------|
-| Parcourir les dossiers | ✓ |
-| Téléchargement (cache + partage) | ✓ |
-| Envoi (depuis Fichiers / photothèque) | ✓ |
-| Renommer, déplacer, supprimer | ✓ |
-| Détection de conflits à l'envoi | ✓ |
+## Réglages — serveur et identifiants
 
-Endpoint : `https://<serveur>/remote.php/dav/files/<utilisateur>/`.
+Les **Réglages** sont l'endroit où vous saisissez l'URL de votre instance Nextcloud et vos identifiants, ainsi que les options d'exécution du Vérificateur de liens (mode de vérification, profil d'usage, masque d'accès, politesse / délai entre requêtes). Une fois un serveur joignable et un mot de passe d'application valides en place, l'appli parle directement à votre instance. Les identifiants résident dans le coffre-fort sécurisé de la plateforme (Android EncryptedSharedPreferences) et ne sont envoyés qu'à l'instance configurée.
 
-## Vérificateur de liens
+![Réglages — serveur et identifiants, plus les options d'exécution du Vérificateur de liens.](../_screens/0.1.0/02-settings.png){width=320}
 
-Repris d'EtabliProbe et réorienté vers le backend Nextcloud.
+## Écrans dépendant du backend
 
-![Vérificateur de liens — prédécesseur EtabliProbe : liste des sources.](../_screens/ios-probe-source.png){width=320}
+Les écrans de données — navigation et gestion des fichiers, résultats en direct du Vérificateur de liens, et les modules Contacts et Calendrier à venir — nécessitent une **instance Nextcloud joignable et des identifiants valides**. Cette session de capture n'en disposait pas ; ces écrans ne sont donc volontairement **pas simulés** ici. Ils deviennent accessibles dès que vous connectez un serveur dans les Réglages ; une future capture sur une instance Nextcloud de test enrichira cette page avec les vues de données réelles.
 
-![Vérificateur de liens — prédécesseur EtabliProbe : exécution planifiée.](../_screens/ios-probe-launch.png){width=320}
+## Où l'obtenir
 
-| Étape | Ce qui se passe |
-|-------|-----------------|
-| Charger la CSV d'entrée | depuis l'appli Fichiers ou le serveur Nextcloud. |
-| Sonder les URL | HEAD/GET par URL : statut HTTP, URL finale après redirections, temps de réponse. |
-| Résultat | Tabulaire dans l'appli, filtrable par statut (2xx/3xx/4xx/5xx). |
-| Sync log | Log des résultats en CSV vers un dossier Nextcloud configurable. |
-
-## Contacts (CardDAV) — *en développement*
-
-Prévu : lecture et écriture des carnets d'adresses sous `/remote.php/dav/addressbooks/users/<utilisateur>/` (vCard 3 / 4), liste + détail, recherche. Tant que l'aller-retour n'est pas systématiquement sûr, le module reste explicitement marqué « en développement ».
-
-## Calendrier (CalDAV) — *en développement*
-
-Prévu : lecture et écriture des calendriers sous `/remote.php/dav/calendars/<utilisateur>/` (iCalendar VEVENT), vues mois et liste. Les événements récurrents (RRULE) sont la partie la plus complexe et la raison pour laquelle le module n'est pas déclaré prêt prématurément.
-
-## Auth & réseau
-
-| Aspect | Comportement |
-|--------|--------------|
-| Auth | HTTP Basic avec mot de passe d'application (standard Nextcloud). |
-| Endpoint | uniquement l'URL Nextcloud configurée. |
-| Autres hôtes | non contactés ; seul le Vérificateur de liens atteint des URL fournies par l'utilisateur. |
-
-## Distribution
+Établi Nuage est actuellement une **version de développement Android uniquement** : un APK signé publié avec la version v0.1.0.
 
 | Canal | App |
 |-------|-----|
-| Android (APK) — **version de développement** | [GitHub Releases](https://github.com/etabli-dev/etabli-nuage/releases) |
+| Android (APK) — **version de développement** | [version v0.1.0](https://github.com/etabli-dev/etabli-nuage/releases/tag/v0.1.0) |
 | App Store (iOS) | prévu — pas encore disponible |
 | Google Play (Android) | prévu — pas encore disponible |
-| F-Droid — dépôt principal | prévu — pas encore disponible |
+| F-Droid | prévu — pas encore disponible |
 | Code source | [`etabli-dev/etabli-nuage`](https://github.com/etabli-dev/etabli-nuage) |

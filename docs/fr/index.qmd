@@ -11,7 +11,7 @@ sidebar: fr
 
 **Statut : en développement.** L'appli regroupe quatre modules Nextcloud sous un même compte. Fichiers (WebDAV) et le Vérificateur de liens fonctionnent déjà en aller-retour ; Contacts (CardDAV) et Calendrier (CalDAV) sont en cours. Établi Nuage ne parle qu'à l'instance Nextcloud configurée et n'est pas affilié à Nextcloud GmbH.
 
-![Nuage — vue principale sur Android après connexion.](../_screens/android-main.png){width=320}
+![Nuage sur Android — l'accueil non connecté avant la configuration d'un serveur.](../_screens/0.1.0/01-login.png){width=320}
 
 ## À qui ça s'adresse
 
