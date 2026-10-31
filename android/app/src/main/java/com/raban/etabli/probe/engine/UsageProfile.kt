@@ -44,6 +44,10 @@ data class UsageProfile(
     val skippedLines: Int = 0,
     val sourceName: String? = null,
 ) {
+    init {
+        require(perMinute.size == 1440 && perMinute.all { it.isFinite() && it in 0.0..1.0 }) { "Invalid probability profile" }
+        require(totalRecords >= 0 && totalDays >= 0 && skippedLines >= 0)
+    }
     val isEmpty: Boolean
         get() = totalDays == 0 || perMinute.all { it == 0.0 }
 
@@ -89,7 +93,8 @@ data class UsageProfile(
             val obj = JSONObject(json)
             val arr = obj.getJSONArray("perMinute")
             val pm = DoubleArray(1440)
-            val n = minOf(1440, arr.length())
+            require(arr.length() == 1440) { "Profile must contain 1440 minutes" }
+            val n = arr.length()
             for (i in 0 until n) pm[i] = arr.getDouble(i)
             return UsageProfile(
                 perMinute = pm,
@@ -108,6 +113,7 @@ object UsageProfileParser {
 
     /// Parse a TXT log and aggregate to a UsageProfile.
     fun parse(text: String, sourceName: String? = null): UsageProfile {
+        require(text.length <= MAX_CSV_BYTES) { "Usage log exceeds 10 MiB" }
         data class Rec(val date: Long, val key: String, val event: Event)
         val records = mutableListOf<Rec>()
         var skipped = 0
@@ -116,6 +122,7 @@ object UsageProfileParser {
             if (line.isEmpty() || line.startsWith("#")) continue
             val parsed = parseLine(line)
             if (parsed == null) { skipped++; continue }
+            require(records.size < 100_000) { "Usage log has too many events" }
             records += Rec(parsed.first, parsed.second, parsed.third)
         }
         records.sortBy { it.date }
@@ -138,10 +145,14 @@ object UsageProfileParser {
         // Build per-day per-minute activity set.
         val cal = Calendar.getInstance()
         val perDay = mutableMapOf<Long, HashSet<Int>>()
-        val days = mutableSetOf<Long>()
+        val days = records.map { cal.timeInMillis = it.date; cal.startOfDayMillis() }.toMutableSet()
+        var expanded = 0
         for ((start, end) in sessions) {
-            var cur = start
+            if (end <= start) continue
+            require(end - start <= 31L * 24 * 60 * 60 * 1000) { "An activity interval exceeds 31 days; check the source timestamps" }
+            var cur = Math.floorDiv(start, 60_000L) * 60_000L
             while (cur < end) {
+                require(++expanded <= 1_000_000) { "Usage log expands to more than one million minutes" }
                 cal.timeInMillis = cur
                 val day = cal.startOfDayMillis()
                 val minute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
@@ -202,6 +213,7 @@ object UsageProfileParser {
         }
     }
 
+    @Synchronized
     fun parseLine(s: String): Triple<Long, String, Event>? {
         val event = when {
             openWord.containsMatchIn(s)  -> Event.Open
@@ -221,9 +233,10 @@ object UsageProfileParser {
         for (c in candidates) {
             for (fmt in isoFormatters) {
                 try {
-                    val d = fmt.parse(c) ?: continue
-                    return d.time
-                } catch (_: Throwable) { /* try next */ }
+                    val position = java.text.ParsePosition(0)
+                    val d = fmt.parse(c, position) ?: continue
+                    if (position.index == c.length) return d.time
+                } catch (_: Exception) { /* try next */ }
             }
         }
         ms13.find(s)?.value?.toLongOrNull()?.let { return it }
@@ -245,7 +258,13 @@ private fun Calendar.startOfDayMillis(): Long {
 
 class UsageProfileStore(context: Context) {
     private val file = File(context.filesDir, "probe_profile.json")
-    fun save(p: UsageProfile) { file.writeText(p.toJson(), Charsets.UTF_8) }
+    fun save(p: UsageProfile) {
+        val temporary = File(file.parentFile, file.name + ".tmp")
+        try {
+            java.io.FileOutputStream(temporary).use { it.write(p.toJson().toByteArray(Charsets.UTF_8)); it.fd.sync() }
+            java.nio.file.Files.move(temporary.toPath(), file.toPath(), java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        } finally { temporary.delete() }
+    }
     fun load(): UsageProfile? = runCatching {
         if (!file.exists()) null else UsageProfile.fromJson(file.readText(Charsets.UTF_8))
     }.getOrNull()

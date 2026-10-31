@@ -40,6 +40,9 @@ import com.raban.etabli.probe.engine.WebDavCreds
 import com.raban.etabli.probe.net.WebDavClient
 import com.raban.etabli.probe.prefs.ThemePref
 import com.raban.etabli.probe.ui.theme.*
+import kotlinx.coroutines.CancellationException
+import com.raban.etabli.probe.engine.readBounded
+import com.raban.etabli.probe.engine.MAX_CSV_BYTES
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -60,16 +63,21 @@ fun SettingsScreen(
 
     var url by remember { mutableStateOf("https://") }
     var user by remember { mutableStateOf("") }
+    var stored by remember { mutableStateOf<WebDavCreds?>(null) }
     var pass by remember { mutableStateOf("") }
     var dirField by remember(uploadDir) { mutableStateOf(uploadDir) }
     var busy by remember { mutableStateOf(false) }
+    var connectionJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     var status by remember { mutableStateOf<String?>(null) }
     var statusTone by remember { mutableStateOf(StatusTone.Info) }
 
     LaunchedEffect(Unit) {
-        app.creds.read()?.let {
-            url = it.baseURL; user = it.username
-            pass = "•••••••• (stored — re-enter to overwrite)"
+        try {
+            stored = withContext(Dispatchers.IO) { app.creds.read() }
+            stored?.let { url = it.baseURL; user = it.username }
+        } catch (e: Exception) {
+            status = "Stored credentials cannot be opened: ${e.message}. Local CSV checking remains available."
+            statusTone = StatusTone.Danger
         }
     }
 
@@ -95,7 +103,7 @@ fun SettingsScreen(
             MonoLabel(
                 when (mode) {
                     RunMode.Foreground -> "each URL renders in a real WebView so you can watch it load."
-                    RunMode.Background -> "each URL is probed with HttpURLConnection (follows redirects, captures status)."
+                    RunMode.Background -> "each URL is probed with cancellable HTTP GET requests (follows redirects, captures status)."
                     RunMode.Scheduled  -> "URLs are opened on a probability schedule (see card below)."
                 },
                 color = t.color.faint,
@@ -143,7 +151,7 @@ fun SettingsScreen(
             TextInput(value = user, placeholder = "username", onChange = { user = it })
             Spacer(Modifier.height(t.space.sm))
             MonoLabel("app password", color = t.color.faint)
-            TextInput(value = pass, placeholder = "app password (NOT your login)",
+            TextInput(value = pass, placeholder = if (stored != null) "leave empty to keep for the same server and user" else "app password",
                       onChange = { pass = it }, isSecret = true)
             Spacer(Modifier.height(t.space.sm))
             MonoLabel("upload folder for the log", color = t.color.faint)
@@ -152,30 +160,41 @@ fun SettingsScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(t.space.md)) {
                 PrimaryButton(if (busy) "Testing…" else "Save & test",
                               icon = Icons.Default.CheckCircle, enabled = !busy) {
-                    scope.launch {
+                    connectionJob = scope.launch {
                         busy = true; status = null
                         try {
-                            val pw = if (pass.startsWith("••••••••")) (app.creds.read()?.appPassword ?: "") else pass
+                            val saved = stored
+                            val sameIdentity = saved?.baseURL?.trimEnd('/') == url.trim().trimEnd('/') && saved.username == user.trim()
+                            val pw = if (pass.isEmpty() && sameIdentity) saved?.appPassword.orEmpty() else pass
                             if (url.isBlank() || user.isBlank() || pw.isBlank()) {
                                 status = "⚠ Fill in all three fields."; statusTone = StatusTone.Danger
                                 return@launch
                             }
                             val creds = WebDavCreds(url.trim(), user.trim(), pw)
+                            val attempt = app.creds.beginConnectionAttempt()
                             val count = WebDavClient(creds).testConnection()
-                            app.creds.write(creds)
+                            withContext(Dispatchers.IO) { app.creds.write(creds, attempt) }
+                            stored = creds
                             app.settings.setUploadDir(dirField)
-                            pass = "•••••••• (stored — re-enter to overwrite)"
+                            pass = ""
                             status = "OK — $count items at root. Stored in EncryptedSharedPreferences."
                             statusTone = StatusTone.Accent
-                        } catch (t: Throwable) {
+                        } catch (e: CancellationException) { throw e } catch (t: Exception) {
                             status = "⚠ ${t.message}"; statusTone = StatusTone.Danger
                         } finally { busy = false }
                     }
                 }
                 PrimaryButton("Disconnect", icon = Icons.AutoMirrored.Filled.Logout) {
-                    app.creds.clear()
-                    pass = ""
-                    status = "Disconnected — creds removed."; statusTone = StatusTone.Info
+                    connectionJob?.cancel()
+                    scope.launch {
+                        try {
+                            withContext(Dispatchers.IO) { app.creds.clear() }
+                            stored = null; pass = ""
+                            status = "Disconnected — credentials removed."; statusTone = StatusTone.Info
+                        } catch (e: Exception) {
+                            status = "Could not remove credentials: ${e.message}"; statusTone = StatusTone.Danger
+                        }
+                    }
                 }
             }
             status?.let {
@@ -228,7 +247,7 @@ private fun UsageProfileCard(app: EtabliProbeApplication, scope: kotlinx.corouti
             scope.launch {
                 try {
                     val text = withContext(Dispatchers.IO) {
-                        ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ctx.contentResolver.openInputStream(uri)?.use { it.readBounded(MAX_CSV_BYTES) }
                             ?.toString(Charsets.UTF_8)
                     } ?: error("Couldn't read file.")
                     val name = uri.lastPathSegment?.substringAfterLast('/') ?: "imported.txt"
@@ -244,7 +263,7 @@ private fun UsageProfileCard(app: EtabliProbeApplication, scope: kotlinx.corouti
                         status = "Loaded ${parsed.totalRecords} events across ${parsed.totalDays} days."
                         statusTone = StatusTone.Accent
                     }
-                } catch (e: Throwable) {
+                } catch (e: CancellationException) { throw e } catch (e: Exception) {
                     status = "⚠ ${e.message}"; statusTone = StatusTone.Danger
                 }
             }

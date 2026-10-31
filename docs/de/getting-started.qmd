@@ -3,42 +3,10 @@ title: "Erste Schritte"
 sidebar: de
 ---
 
-## Voraussetzungen
+URLs aus einer lokalen CSV oder einer über Nextcloud-WebDAV geladenen CSV prüfen. Ergebnisdateien bleiben gespeichert und können geteilt oder hochgeladen werden. Allgemeiner Dateibrowser, Kontakte und Kalender sind nicht implementiert. Der Prüfbildschirm muss aktiv bleiben.
 
-- Eine eigene, erreichbare Nextcloud-Instanz (HTTPS empfohlen).
-- Ein **App-Passwort** für deinen Benutzer (siehe unten).
+Diese Seite beschreibt den Quellstand vom Oktober 2026. Die Änderungen im Quellcode sind nicht Teil der Downloads älterer Entwicklungsreleases. Lokale Prüfungen ersetzen keine Geräte-, Live-Server- oder Store-Abnahme.
 
-## App-Passwort in Nextcloud erzeugen
+[Aktueller Funktionsumfang, Voraussetzungen und Befehle (Englisch)](../current-status.qmd)
 
-App-Passwörter ersetzen das Hauptpasswort und können pro Gerät widerrufen werden.
-
-1. In Nextcloud einloggen.
-2. Avatar oben rechts → **Persönliche Einstellungen** → **Sicherheit**.
-3. Unter **Geräte & Sitzungen**: Name vergeben (z.B. „Établi Nuage — iPhone"), **Neues App-Passwort erstellen** klicken.
-4. URL (`https://cloud.example.org`) und das angezeigte App-Passwort merken — letzteres wird nur einmal angezeigt.
-
-## App einrichten
-
-1. App aus dem Store installieren und öffnen.
-2. Im Einrichtungs-Dialog eintragen:
-   - **Server-URL**
-   - **Benutzername**
-   - **App-Passwort**
-3. Die Anmeldung gilt für alle vier Module — ein Konto, eine Konfiguration.
-
-![Nach erfolgreicher Anmeldung: Übersicht der Module.](../_screens/android-main.png){width=320}
-
-## Modul-Status
-
-| Modul | Stand |
-|-------|-------|
-| **Dateien (WebDAV)** | round-trip-fähig: Browse, Download, Upload, Umbenennen, Löschen. |
-| **Link-Prüfer** | round-trip-fähig: CSV mit URLs prüfen, Status-Log zurück in Nextcloud schreiben. |
-| **Kontakte (CardDAV)** | in Entwicklung — noch nicht für den produktiven Einsatz. |
-| **Kalender (CalDAV)** | in Entwicklung — noch nicht für den produktiven Einsatz. |
-
-## Hinweise
-
-- App-Passwörter lassen sich in Nextcloud jederzeit unter **Sicherheit → Geräte & Sitzungen** widerrufen — bei Geräteverlust unbedingt nutzen.
-- Self-signed Zertifikate werden nicht automatisch akzeptiert.
-- Die App kontaktiert ausschließlich die konfigurierte Nextcloud-URL.
+[README](https://github.com/etabli-dev/etabli-nuage/blob/main/README.md) · [GitHub](https://github.com/etabli-dev/etabli-nuage)

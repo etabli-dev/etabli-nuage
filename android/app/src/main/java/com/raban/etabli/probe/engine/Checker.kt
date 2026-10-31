@@ -1,96 +1,67 @@
 // Copyright 2026 R. Heller
 // SPDX-License-Identifier: Apache-2.0
-
 package com.raban.etabli.probe.engine
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
-import java.net.HttpURLConnection
-import java.net.URL
+import kotlinx.coroutines.*
+import okhttp3.*
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import java.io.IOException
+import java.net.SocketTimeoutException
 import java.util.Date
-import java.util.TimeZone
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
-// User-agent matches the iOS twin — server logs see one identity.
-const val USER_AGENT = "EtabliProbe/1.0 (+QA link-checker; sequential)"
+const val USER_AGENT = "EtabliNuage/1.0 (+QA link-checker; sequential)"
 
-class BackgroundChecker(
-    private val timeoutMs: Long,
-    private val installId: String,
-) {
-    suspend fun probe(entry: UrlEntry): CheckResult = withContext(Dispatchers.IO) {
-        val now = Date()
-        val nowUtc = Date(now.time)
-        TimeZone.getTimeZone("UTC")
-        if (!entry.valid) {
-            return@withContext CheckResult(
-                rowIndex = entry.rowIndex, url = entry.raw, mode = "background",
-                result = "SKIPPED: invalid URL",
-                finalURL = null, durationMs = 0L,
-                timestampLocal = now, timestampUtc = nowUtc, installId = installId,
-            )
-        }
-        val started = System.currentTimeMillis()
-        try {
-            withTimeout(timeoutMs + 1_000) {
-                val (code, finalUrl) = probeOnce(entry.normalized!!)
-                val elapsed = System.currentTimeMillis() - started
-                CheckResult(
-                    rowIndex = entry.rowIndex, url = entry.normalized,
-                    mode = "background", result = code.toString(),
-                    finalURL = finalUrl, durationMs = elapsed,
-                    timestampLocal = Date(), timestampUtc = Date(),
-                    installId = installId,
-                )
-            }
-        } catch (t: kotlinx.coroutines.TimeoutCancellationException) {
-            val elapsed = System.currentTimeMillis() - started
-            CheckResult(
-                rowIndex = entry.rowIndex, url = entry.normalized ?: entry.raw,
-                mode = "background", result = "FAILED: timeout (${timeoutMs / 1000}s)",
-                finalURL = null, durationMs = elapsed,
-                timestampLocal = Date(), timestampUtc = Date(),
-                installId = installId,
-            )
-        } catch (t: Throwable) {
-            val elapsed = System.currentTimeMillis() - started
-            CheckResult(
-                rowIndex = entry.rowIndex, url = entry.normalized ?: entry.raw,
-                mode = "background", result = "FAILED: ${t.message ?: t::class.simpleName}",
-                finalURL = null, durationMs = elapsed,
-                timestampLocal = Date(), timestampUtc = Date(),
-                installId = installId,
-            )
+class BackgroundChecker(private val timeoutMs: Long, private val installId: String) {
+    init { require(timeoutMs in 1..120_000) { "Timeout must be between 1 and 120000 ms" } }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private suspend fun headers(url: HttpUrl, remaining: Long): Response {
+        val call = transport.newBuilder().callTimeout(remaining, TimeUnit.MILLISECONDS)
+            .connectTimeout(remaining, TimeUnit.MILLISECONDS).readTimeout(remaining, TimeUnit.MILLISECONDS)
+            .build().newCall(Request.Builder().url(url).header("User-Agent", USER_AGENT).get().build())
+        return suspendCancellableCoroutine { pending ->
+            pending.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, error: IOException) { if (!pending.isCancelled) pending.resumeWithException(error) }
+                override fun onResponse(call: Call, response: Response) { pending.resume(response) { response.close() } }
+            })
         }
     }
 
-    /// Hand-rolled redirect follower so we capture the *final* URL the same
-    /// way URLSession does on iOS. The platform HttpURLConnection only
-    /// auto-follows http→http or https→https, so we drive it ourselves.
-    private fun probeOnce(start: String): Pair<Int, String?> {
-        var current = start
-        repeat(10) {
-            val conn = (URL(current).openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                instanceFollowRedirects = false
-                connectTimeout = timeoutMs.toInt()
-                readTimeout = timeoutMs.toInt()
-                setRequestProperty("User-Agent", USER_AGENT)
-            }
-            try {
-                val code = conn.responseCode
-                if (code in 300..399) {
-                    val next = conn.getHeaderField("Location") ?: return code to current
-                    current = if (next.startsWith("http")) next else URL(URL(current), next).toString()
-                } else {
-                    // drain body to free the connection
-                    try { conn.inputStream.use { it.readBytes() } } catch (_: Throwable) {
-                        conn.errorStream?.use { it.readBytes() }
-                    }
-                    return code to current
+    suspend fun probe(entry: UrlEntry): CheckResult {
+        val started = System.nanoTime()
+        fun result(label: String, finalUrl: String?) = CheckResult(
+            entry.rowIndex, entry.normalized ?: entry.raw, "background", label, finalUrl,
+            (System.nanoTime() - started) / 1_000_000, Date(), Date(), installId,
+        )
+        currentCoroutineContext().ensureActive()
+        if (!entry.valid) return result("SKIPPED: invalid URL", null)
+        try {
+            var current = entry.normalized!!.toHttpUrl()
+            val deadline = started + timeoutMs * 1_000_000
+            repeat(10) {
+                currentCoroutineContext().ensureActive()
+                require(current.username.isEmpty() && current.password.isEmpty()) { "Embedded credentials are not supported" }
+                val remaining = (deadline - System.nanoTime()) / 1_000_000
+                if (remaining <= 0) throw SocketTimeoutException()
+                headers(current, remaining).use { response ->
+                    currentCoroutineContext().ensureActive()
+                    if (System.nanoTime() > deadline) throw SocketTimeoutException()
+                    val location = if (response.code in listOf(301, 302, 303, 307, 308)) response.header("Location") else null
+                    if (location == null) return result(response.code.toString(), current.toString())
+                    current = current.resolve(location) ?: throw IOException("Only HTTP(S) redirects are supported")
                 }
-            } finally { conn.disconnect() }
-        }
-        return 0 to current
+            }
+            throw IOException("Too many redirects (maximum 10)")
+        } catch (e: CancellationException) { throw e }
+        catch (_: java.io.InterruptedIOException) { return result("FAILED: timeout (${timeoutMs}ms)", null) }
+        catch (e: Exception) { return result("FAILED: ${e.message ?: e.javaClass.simpleName}", null) }
+    }
+
+    companion object {
+        private val transport = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).build()
     }
 }

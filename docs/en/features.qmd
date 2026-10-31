@@ -3,34 +3,14 @@ title: "Features"
 sidebar: en
 ---
 
-Établi Nuage is a native client for a self-hosted Nextcloud instance. It talks only to the server you point it at — no central service, no third party in between. The app is **in development**: Files (WebDAV) and the Link Checker already round-trip, while Contacts (CardDAV) and Calendar (CalDAV) are still being finished.
+Check URLs from a local CSV or a CSV retrieved by Nextcloud WebDAV path. Keep and share per-run CSV results, optionally uploading them to Nextcloud. A general file browser, Contacts and Calendar are not implemented. Runs require the run screen to stay active.
 
-The figures below are real screenshots of the v0.1.0 build on an Android emulator. With no server configured yet, the app stays in a deliberate "not connected" state and points you to Settings — nothing is fetched until you connect.
+This page describes the October 2026 source revision. These changes are unpublished and are not part of older development releases. Local checks are distinct from device, live-service and store acceptance.
 
-## Not connected — the starting state
+[Current status / Aktueller Stand / État actuel](../current-status.qmd)
 
-On first launch no Nextcloud server is configured, so the home tab shows a **not connected** state. It uses the suite's terminal-style breadcrumb (`~/probe/source`) and makes the next step explicit: pick a local CSV, or set the server and credentials in Settings before fetching anything from Nextcloud. Nothing leaves the device until you connect.
+Historical screenshots from v0.1.0; these are not verification of the current revision.
 
 ![Home — not connected: pick a local CSV or set Nextcloud credentials in Settings first.](../_screens/0.1.0/01-login.png){width=320}
 
-## Settings — server & credentials
-
-**Settings** is where you enter your Nextcloud instance URL and credentials, plus the run options for the Link Checker (check mode, usage profile, access mask, politeness/request delay). Once a reachable server and a valid app password are in place, the app talks directly to your instance. Credentials live in the platform secure store (Android EncryptedSharedPreferences) and only ever go to the configured instance.
-
 ![Settings — server and credentials, plus Link Checker run options.](../_screens/0.1.0/02-settings.png){width=320}
-
-## Backend-dependent screens
-
-The data screens — browsing and managing files, the live Link Checker results, and the Contacts and Calendar modules still to come — require a **reachable Nextcloud instance and valid credentials**. This capture run did not have one, so those screens are intentionally **not faked** here. They become reachable once you connect a server in Settings; a future capture against a test Nextcloud instance will extend this page with the live data views.
-
-## Where to get it
-
-Établi Nuage is currently an **Android-only development build**: a signed APK published with the v0.1.0 release.
-
-| Channel | App |
-|---------|-----|
-| Android (APK) — **development build** | [v0.1.0 release](https://github.com/etabli-dev/etabli-nuage/releases/tag/v0.1.0) |
-| App Store (iOS) | planned — not yet available |
-| Google Play (Android) | planned — not yet available |
-| F-Droid | planned — not yet available |
-| Source code | [`etabli-dev/etabli-nuage`](https://github.com/etabli-dev/etabli-nuage) |

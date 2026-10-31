@@ -1,8 +1,8 @@
-# Établi Probe — iOS submission checklist
+# Établi Nuage — iOS submission checklist
 
 ## Build outputs
-- Xcode workspace builds a `.app` for both the simulator and physical devices.
-  Sample debug build verified for `iPhone 17` simulator (iOS 26.5) in this session — screenshot in `screenshots/launch.png`.
+- Historical simulator screenshots are retained under `screenshots/`; they do not verify this refinement.
+- On 2026-10-30, Foundation models/CSV/probes/DAV paths/logging/profile checks compile and pass locally. Xcode is absent: the current SwiftUI app, simulator and device build remain unverified.
 - Pure-Swift sources under `App/` (Xcode 16's File-System-Synchronized group, so files are auto-picked up — no `.pbxproj` surgery needed when adding new files).
 
 ## What's done
@@ -21,15 +21,17 @@
 
 ## What you must do before publishing
 - [ ] Sign with your Apple Developer team in Xcode (target → Signing & Capabilities)
+- [ ] Build/run the current app on simulator and a device; verify stop/timeout, HTTP errors, saved-log sharing, Keychain reconnect and existing data
+- [ ] Verify ATS behavior for user-entered HTTP links; document the arbitrary-load exception for this link-checker use case in submission notes (DAV still enforces HTTPS)
 - [ ] Privacy policy URL
 - [ ] App Store Connect listing assets: 1024×1024 icon, screenshots, description
-- [ ] App Privacy form — declare: no data collection; credentials stored on-device only; WebDAV traffic goes to the user's Nextcloud, not to us
+- [ ] App Privacy form — declare: no data collection; credentials stored on-device; checks contact supplied URLs and page resources; WebDAV traffic goes to the user's Nextcloud
 - [ ] Encryption export declaration — `ITSAppUsesNonExemptEncryption=NO` if you only use Apple system crypto
 - [ ] **Background-mode caveat**: This PoC's "background" tab runs the same URLSession loop in the foreground (no `BGTaskScheduler` identifier registered). For true off-screen sweeps you'd register a `BGProcessingTaskRequest`, add the `processing` mode to `UIBackgroundModes` in Info.plist, and submit the task before backgrounding. Out of scope here.
 
 ## How to run
 ```bash
-cd "iOS Sandbox/EtabliProbe"
+cd ios
 open EtabliProbe.xcodeproj
 # Build for simulator:
 xcodebuild -project EtabliProbe.xcodeproj -scheme EtabliProbe \

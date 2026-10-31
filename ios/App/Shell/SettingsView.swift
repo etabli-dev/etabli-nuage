@@ -17,6 +17,7 @@ struct SettingsView: View {
     @AppStorage("nc.baseURL") private var baseURL: String = "https://"
     @AppStorage("nc.username") private var username: String = ""
 
+    @State private var savedIdentity: WebDavCreds?
     @State private var passwordField: String = ""
     @State private var busy = false
     @State private var status: String?
@@ -111,7 +112,7 @@ struct SettingsView: View {
                     Slider(value: $timeoutSec, in: 3...120, step: 1).tint(Theme.Color.accent)
                 }
 
-                Card(title: "Nextcloud (xlsx fetch + log upload)", systemImage: "cloud") {
+                Card(title: "Nextcloud (CSV fetch + log upload)", systemImage: "cloud") {
                     MonoLabel("Use an APP PASSWORD (Settings → Security → Devices & sessions in Nextcloud). NOT your login.",
                               color: Theme.Color.faint)
                     LabeledField("base URL", text: $baseURL)
@@ -157,9 +158,7 @@ struct SettingsView: View {
         }
         .background(Theme.Color.paper.ignoresSafeArea())
         .onAppear {
-            if Keychain.get(account: "nc.password") != nil, passwordField.isEmpty {
-                passwordField = "•••••••• (stored — re-enter to overwrite)"
-            }
+            savedIdentity = readCreds()
             profile = UsageProfileStore.load()
         }
         .fileImporter(isPresented: $importing,
@@ -174,12 +173,12 @@ struct SettingsView: View {
             guard let url = try result.get().first else { return }
             let opened = url.startAccessingSecurityScopedResource()
             defer { if opened { url.stopAccessingSecurityScopedResource() } }
-            let data = try Data(contentsOf: url)
+            let data = try CsvLoader.read(url)
             let text = String(data: data, encoding: .utf8)
                 ?? String(data: data, encoding: .isoLatin1)
                 ?? ""
-            let parsed = UsageProfileParser.parse(text, sourceName: url.lastPathComponent)
-            UsageProfileStore.save(parsed)
+            let parsed = try UsageProfileParser.parse(text, sourceName: url.lastPathComponent)
+            try UsageProfileStore.save(parsed)
             profile = parsed
             if parsed.totalDays == 0 {
                 profileStatus = "⚠ no valid open/close events recognised (\(parsed.skippedLines) lines skipped)."
@@ -197,8 +196,8 @@ struct SettingsView: View {
         busy = true; defer { busy = false }
         status = nil
         let pw: String
-        if passwordField.hasPrefix("••••••••"), let existing = Keychain.get(account: "nc.password") {
-            pw = existing
+        if passwordField.isEmpty, let saved = savedIdentity, saved.baseURL == baseURL.trimmingCharacters(in: .whitespaces), saved.username == username.trimmingCharacters(in: .whitespaces) {
+            pw = saved.appPassword
         } else {
             pw = passwordField
         }
@@ -210,10 +209,10 @@ struct SettingsView: View {
                                 appPassword: pw)
         do {
             let count = try await WebDavClient(creds).testConnection()
-            try Keychain.set(creds.baseURL, account: "nc.baseURL")
-            try Keychain.set(creds.username, account: "nc.username")
-            try Keychain.set(creds.appPassword, account: "nc.password")
-            passwordField = "•••••••• (stored — re-enter to overwrite)"
+            let saved = try JSONEncoder().encode(creds)
+            try Keychain.set(String(decoding: saved, as: UTF8.self), account: "nc.credentials.v2")
+            passwordField = ""
+            savedIdentity = creds
             status = "OK — \(count) items at root. Credentials stored in Keychain."
             statusTone = .accent
         } catch {
@@ -222,12 +221,11 @@ struct SettingsView: View {
     }
 
     private func clear() {
-        Keychain.delete(account: "nc.baseURL")
-        Keychain.delete(account: "nc.username")
-        Keychain.delete(account: "nc.password")
-        passwordField = ""
-        status = "Disconnected — Keychain entries removed."
-        statusTone = .info
+        do {
+            for account in ["nc.password", "nc.baseURL", "nc.username", "nc.credentials.v2"] { try Keychain.delete(account: account) }
+            passwordField = ""; savedIdentity = nil
+            status = "Disconnected — Keychain entries removed."; statusTone = .info
+        } catch { status = "Could not remove credentials: \(error.localizedDescription)"; statusTone = .danger }
     }
 }
 

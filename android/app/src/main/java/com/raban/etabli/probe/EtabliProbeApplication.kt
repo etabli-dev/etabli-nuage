@@ -23,6 +23,12 @@ class EtabliProbeApplication : Application() {
         super.onCreate()
         settings = SettingsStore(this)
         creds = CredsStore(this)
-        installId = creds.installId()
+        installId = try { creds.installId() } catch (_: Exception) {
+            // Keep local checking usable if an old restored key cannot be opened. Do not erase it.
+            val fallback = getSharedPreferences("probe_install", MODE_PRIVATE)
+            fallback.getString("id", null) ?: java.util.UUID.randomUUID().toString().also {
+                fallback.edit().putString("id", it).apply()
+            }
+        }
     }
 }

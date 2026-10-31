@@ -44,14 +44,17 @@ public struct CheckResult: Hashable, Sendable, Identifiable {
     }()
 
     public func csvRow() -> [String] {
-        [
+        let local = ISO8601DateFormatter()
+        local.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        local.timeZone = .current
+        return [
             String(rowIndex),
             url,
             mode,
             result,
             finalURL ?? "",
             durationMs.map(String.init) ?? "",
-            CheckResult.isoFormatter.string(from: timestampLocal),
+            local.string(from: timestampLocal),
             CheckResult.isoFormatter.string(from: timestampUtc),
             installId,
         ]
@@ -70,7 +73,7 @@ public enum LogRotation: String, CaseIterable, Identifiable, Sendable {
     public var label: String { self == .append ? "append" : "per run" }
 }
 
-public struct WebDavCreds: Equatable, Sendable {
+public struct WebDavCreds: Equatable, Sendable, Codable {
     public let baseURL: String
     public let username: String
     public let appPassword: String

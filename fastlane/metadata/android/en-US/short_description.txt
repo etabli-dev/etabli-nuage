@@ -1,1 +1,1 @@
-Nextcloud client: files, contacts, calendar, link checks
+Check CSV links and share logs, with optional Nextcloud storage

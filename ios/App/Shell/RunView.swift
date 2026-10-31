@@ -17,6 +17,7 @@ struct RunView: View {
     // Foreground job state
     @State private var webContainer = WebContainer()
     @State private var runTask: Task<Void, Never>?
+    @State private var runError: String?
     @State private var currentMessage: String?
 
     var body: some View {
@@ -38,6 +39,7 @@ struct RunView: View {
                     }
                 }
 
+                if let runError { StatusLabel(runError, tone: .danger) }
                 switch RunMode(rawValue: modeRaw) ?? .foreground {
                 case .foreground: foregroundBody
                 case .background: backgroundBody
@@ -48,6 +50,7 @@ struct RunView: View {
         }
         .background(Theme.Color.paper.ignoresSafeArea())
         .onAppear { profile = UsageProfileStore.load() }
+        .onDisappear { stop() }
     }
 
     // MARK: - Foreground
@@ -100,7 +103,7 @@ struct RunView: View {
         state.logger = logger
         state.total = entries.count
         state.done = 0; state.passCount = 0; state.failCount = 0
-        state.running = true; state.paused = false
+        state.running = true; state.paused = false; runError = nil
         currentMessage = nil
 
         let timeout = timeoutSec
@@ -108,8 +111,10 @@ struct RunView: View {
         let container = webContainer
 
         runTask = Task { @MainActor in
+            defer { logger.close(); state.running = false; state.paused = false; currentMessage = nil }
+            do {
             for (i, entry) in entries.enumerated() {
-                while state.paused && state.running { try? await Task.sleep(nanoseconds: 200_000_000) }
+                while state.paused && state.running { try await Task.sleep(nanoseconds: 200_000_000) }
                 if !state.running { break }
                 currentMessage = "opening \(entry.normalized ?? entry.raw)"
 
@@ -130,22 +135,22 @@ struct RunView: View {
                         outcome: outcome
                     )
                 }
-                logger.append(result)
+                try Task.checkCancellation()
+                try logger.append(result)
                 if result.pass { state.passCount += 1 } else { state.failCount += 1 }
                 state.done = i + 1
                 if i + 1 < entries.count {
-                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 }
             }
-            logger.close()
-            state.running = false; state.paused = false
-            currentMessage = nil
+            } catch is CancellationError { }
+            catch { runError = "Run stopped: \(error.localizedDescription). Completed rows remain in the log." }
         }
     }
 
     private func stop() {
-        state.running = false
         runTask?.cancel()
+        webContainer.cancel()
     }
 
     // MARK: - Background
@@ -153,10 +158,8 @@ struct RunView: View {
         VStack(alignment: .leading, spacing: Theme.Space.lg) {
             Card(title: "OS budget — read this", systemImage: "info.circle") {
                 MonoLabel(
-                    "Background mode processes the queue in OS-granted slices " +
-                    "(iOS BGTaskScheduler; Android WorkManager on the twin app). " +
-                    "It is NOT instant or continuous — a long list will be swept over " +
-                    "multiple OS-granted windows. Progress persists across kills.",
+                    "Background mode performs sequential HTTP checks while this screen is active. " +
+                    "Leaving the screen stops the run. Completed CSV rows are retained; automatic queue resume is not implemented.",
                     color: Theme.Color.faint
                 )
             }
@@ -265,7 +268,7 @@ struct RunView: View {
         state.logger = logger
         state.total = entries.count; state.done = 0
         state.passCount = 0; state.failCount = 0
-        state.running = true; state.paused = false
+        state.running = true; state.paused = false; runError = nil
         currentMessage = nil
         lastProbability = nil; lastTickMinute = 0
 
@@ -275,9 +278,11 @@ struct RunView: View {
         let mask = MaskMode(rawValue: maskRaw) ?? .none
 
         runTask = Task { @MainActor in
+            defer { logger.close(); state.running = false; state.paused = false; currentMessage = nil }
+            do {
             var queue = entries
             while !queue.isEmpty {
-                while state.paused && state.running { try? await Task.sleep(nanoseconds: 200_000_000) }
+                while state.paused && state.running { try await Task.sleep(nanoseconds: 200_000_000) }
                 if !state.running { break }
 
                 let now = Date()
@@ -306,20 +311,21 @@ struct RunView: View {
                         finalURL: container.lastFinalURL,
                         outcome: outcome
                     )
-                    logger.append(res)
+                    try Task.checkCancellation()
+                    try logger.append(res)
                     if res.pass { state.passCount += 1 } else { state.failCount += 1 }
                     state.done = entries.count - queue.count
                 }
+                if queue.isEmpty { break }
                 // Sleep until just after the next wall-clock minute boundary.
                 let nextMinute = Calendar.current.nextDate(after: Date(),
                                                            matching: DateComponents(second: 1),
                                                            matchingPolicy: .nextTime) ?? Date().addingTimeInterval(60)
                 let nano = UInt64(max(1, nextMinute.timeIntervalSince(Date()) * 1_000_000_000))
-                try? await Task.sleep(nanoseconds: nano)
+                try await Task.sleep(nanoseconds: nano)
             }
-            logger.close()
-            state.running = false; state.paused = false
-            currentMessage = nil
+            } catch is CancellationError { }
+            catch { runError = "Run stopped: \(error.localizedDescription). Completed rows remain in the log." }
         }
     }
 
@@ -330,29 +336,26 @@ struct RunView: View {
         state.logger = logger
         state.total = entries.count
         state.done = 0; state.passCount = 0; state.failCount = 0
-        state.running = true; state.paused = false
+        state.running = true; state.paused = false; runError = nil
 
         let timeout = timeoutSec
         let delay = delaySec
 
-        runTask = Task.detached(priority: .utility) {
-            let checker = await BackgroundChecker(timeout: timeout, installId: installID)
-            for (i, entry) in entries.enumerated() {
-                if Task.isCancelled { break }
-                let res = await checker.probe(entry)
-                await MainActor.run {
-                    logger.append(res)
+        runTask = Task { @MainActor in
+            defer { logger.close(); state.running = false; state.paused = false }
+            do {
+                let checker = BackgroundChecker(timeout: timeout, installId: installID)
+                for (i, entry) in entries.enumerated() {
+                    try Task.checkCancellation()
+                    let res = try await checker.probe(entry)
+                    try Task.checkCancellation()
+                    try logger.append(res)
                     if res.pass { state.passCount += 1 } else { state.failCount += 1 }
                     state.done = i + 1
+                    if i + 1 < entries.count { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
                 }
-                if i + 1 < entries.count {
-                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                }
-            }
-            await MainActor.run {
-                logger.close()
-                state.running = false
-            }
+            } catch is CancellationError { }
+            catch { runError = "Run stopped: \(error.localizedDescription). Completed rows remain in the log." }
         }
     }
 }
@@ -364,55 +367,76 @@ final class WebContainer: ObservableObject {
     let webView: WKWebView
     private var continuation: CheckedContinuation<String, Never>?
     private var cancelTimer: Task<Void, Never>?
-    private weak var navDelegate: NavDelegate?
+    private var navDelegate: NavDelegate?
+    private var generation = UUID()
     var lastFinalURL: String?
 
     init() {
-        let cfg = WKWebViewConfiguration()
-        cfg.websiteDataStore = .nonPersistent()
-        self.webView = WKWebView(frame: .zero, configuration: cfg)
-        self.webView.customUserAgent = userAgent
-        let d = NavDelegate { [weak self] outcome, finalURL in
-            self?.lastFinalURL = finalURL
-            self?.cancelTimer?.cancel(); self?.cancelTimer = nil
-            self?.continuation?.resume(returning: outcome)
-            self?.continuation = nil
-        }
-        self.navDelegate = d
-        self.webView.navigationDelegate = d
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = .nonPersistent()
+        webView = WKWebView(frame: .zero, configuration: config)
+        webView.customUserAgent = userAgent
     }
-
-    /// Load `url` and resolve once onFinished or onError fires, or `timeout` lapses.
+    func cancel() { finish("CANCELLED", finalURL: nil); webView.stopLoading() }
+    private func finish(_ outcome: String, finalURL: String?) {
+        guard let pending = continuation else { return }
+        continuation = nil
+        lastFinalURL = finalURL
+        cancelTimer?.cancel(); cancelTimer = nil
+        pending.resume(returning: outcome)
+    }
     func load(_ url: URL, timeout: TimeInterval) async -> String {
+        cancel()
         lastFinalURL = nil
-        return await withCheckedContinuation { (cont: CheckedContinuation<String, Never>) in
-            self.continuation = cont
-            cancelTimer = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                guard let self else { return }
-                if let c = self.continuation {
-                    self.continuation = nil
-                    c.resume(returning: "TIMEOUT")
+        let token = UUID(); generation = token
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                if Task.isCancelled { continuation.resume(returning: "CANCELLED"); return }
+                self.continuation = continuation
+                let delegate = NavDelegate { [weak self] outcome, finalURL in
+                    guard let self, self.generation == token else { return }
+                    self.finish(outcome, finalURL: finalURL)
+                }
+                navDelegate = delegate // WKWebView's navigationDelegate property is weak.
+                webView.navigationDelegate = delegate
+                delegate.navigation = webView.load(URLRequest(url: url))
+                cancelTimer = Task { [weak self] in
+                    do { try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000)) }
+                    catch { return }
+                    guard let self, self.generation == token else { return }
+                    self.finish("TIMEOUT", finalURL: self.webView.url?.absoluteString)
                     self.webView.stopLoading()
                 }
             }
-            webView.load(URLRequest(url: url))
-        }
+        } onCancel: { Task { @MainActor [weak self] in if self?.generation == token { self?.cancel() } } }
     }
 }
 
+@MainActor
 private final class NavDelegate: NSObject, WKNavigationDelegate {
+    var navigation: WKNavigation?
     let report: (String, String?) -> Void
     init(report: @escaping (String, String?) -> Void) { self.report = report }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard navigation === self.navigation else { return }
         report("LOADED", webView.url?.absoluteString)
     }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        guard navigation === self.navigation else { return }
         report("LOAD_ERROR: \(error.localizedDescription)", webView.url?.absoluteString)
     }
-    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!,
-                 withError error: Error) {
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        guard navigation === self.navigation else { return }
         report("LOAD_ERROR: \(error.localizedDescription)", nil)
+    }
+    func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        if response.isForMainFrame, let http = response.response as? HTTPURLResponse, http.statusCode >= 400 {
+            report("HTTP_ERROR: \(http.statusCode)", http.url?.absoluteString)
+            decisionHandler(.cancel)
+        } else { decisionHandler(.allow) }
+    }
+    func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        decisionHandler(["http", "https"].contains(action.request.url?.scheme?.lowercased() ?? "") ? .allow : .cancel)
     }
 }
 

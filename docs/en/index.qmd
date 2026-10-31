@@ -3,48 +3,10 @@ title: "Établi Nuage"
 sidebar: en
 ---
 
-<img src="../_icons/icon-nuage.svg" alt="" width="80" align="right" style="margin:0 0 1rem 1rem;">
+Check URLs from a local CSV or a CSV retrieved by Nextcloud WebDAV path. Keep and share per-run CSV results, optionally uploading them to Nextcloud. A general file browser, Contacts and Calendar are not implemented. Runs require the run screen to stay active.
 
-<span class="etabli-badge">Self-hosted client</span>
+This page describes the October 2026 source revision. These source changes are not part of older development release downloads. Local checks are distinct from device, live-service and store acceptance.
 
-> Your own Nextcloud — files, contacts, calendar, link checker — in one app.
+[Current implementation, prerequisites and commands](../current-status.qmd)
 
-**Status: in development.** The app bundles four Nextcloud modules under one account. Files (WebDAV) and the Link Checker already round-trip; Contacts (CardDAV) and Calendar (CalDAV) are in progress. Établi Nuage only talks to the configured Nextcloud instance and is not affiliated with Nextcloud GmbH.
-
-![Nuage on Android — the not-connected home before a server is configured.](../_screens/0.1.0/01-login.png){width=320}
-
-## Who benefits
-
-Anyone self-hosting Nextcloud who wants to reach files, contacts and calendar on the go without juggling several official apps — and who additionally values the Link Checker (for maintaining a URL list with status synced back to Nextcloud).
-
-## Platforms
-
-| Platform | Status |
-|----------|--------|
-| iOS      | ✓      |
-| Android  | ✓      |
-
-## Privacy
-
-No analytics, no third-party SDKs. Sign-in happens on your self-hosted Nextcloud server. Credentials (server URL + app password) live only in the platform secure store (iOS Keychain · Android EncryptedSharedPreferences) and only go to the configured instance.
-
-## Installation
-
-Établi Nuage is **under active development** (Contacts/CardDAV and Calendar/CalDAV are still being finished). There are no App Store, Google Play or F-Droid releases yet.
-
-| Channel | Status |
-|---------|--------|
-| Android (APK) | **Development build** via [GitHub Releases](https://github.com/etabli-dev/etabli-nuage/releases) |
-| App Store (iOS) | planned — not yet available |
-| Google Play | planned — not yet available |
-| F-Droid | planned — not yet available |
-
-Details: see [Getting Started](getting-started.qmd).
-
-## Origin
-
-Nuage is the continuation of **EtabliProbe** (originally a pure WebDAV-based link checker). The Link Checker is now one of four modules.
-
-## Support
-
-If you find the app useful: [Liberapay](https://liberapay.com/rabanheller/).
+[README](https://github.com/etabli-dev/etabli-nuage/blob/main/README.md) · [GitHub](https://github.com/etabli-dev/etabli-nuage)

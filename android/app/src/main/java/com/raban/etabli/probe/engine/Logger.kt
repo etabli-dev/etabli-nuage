@@ -13,10 +13,11 @@ import java.util.Locale
 // Append-only CSV logger. One row per check is flushed to disk before we
 // move on, so a kill mid-run doesn't lose progress.
 
-class CheckLogger(context: Context, private val rotation: LogRotation) {
-    private val dir: File = File(context.filesDir, "probe_logs").apply { mkdirs() }
+class CheckLogger(private val dir: File, private val rotation: LogRotation) {
+    constructor(context: Context, rotation: LogRotation) : this(File(context.filesDir, "probe_logs"), rotation)
+    init { require(dir.isDirectory || dir.mkdirs()) { "Could not create the log directory" } }
     private val runStamp: String =
-        SimpleDateFormat("yyyy-MM-dd-HHmmss", Locale.US).format(Date())
+        SimpleDateFormat("yyyy-MM-dd-HHmmss-SSS", Locale.US).format(Date()) + "-" + java.util.UUID.randomUUID().toString().take(8)
     val currentFile: File by lazy {
         val name = if (rotation == LogRotation.PerRun) "probe_$runStamp.csv" else "probe.csv"
         File(dir, name)
@@ -24,26 +25,27 @@ class CheckLogger(context: Context, private val rotation: LogRotation) {
     private val memory = mutableListOf<CheckResult>()
     private var primed = false
 
+    @Synchronized
     fun all(): List<CheckResult> = memory.toList()
 
     @Synchronized
     fun append(r: CheckResult) {
         ensureHeader()
-        memory += r
         val line = (r.toCsvRow().map(::escape).joinToString(",")) + "\n"
-        FileOutputStream(currentFile, true).use { it.write(line.toByteArray(Charsets.UTF_8)) }
+        FileOutputStream(currentFile, true).use { it.write(line.toByteArray(Charsets.UTF_8)); it.fd.sync() }
+        memory += r
     }
 
     private fun ensureHeader() {
         if (primed) return
-        primed = true
-        if (currentFile.exists() && currentFile.length() > 0) return
+        if (currentFile.exists() && currentFile.length() > 0) { primed = true; return }
         val header = CheckResult.csvHeader.joinToString(",", postfix = "\n")
-        FileOutputStream(currentFile, false).use { it.write(header.toByteArray(Charsets.UTF_8)) }
+        FileOutputStream(currentFile, false).use { it.write(header.toByteArray(Charsets.UTF_8)); it.fd.sync() }
+        primed = true
     }
 
     private fun escape(s: String): String =
-        if (s.contains(',') || s.contains('"') || s.contains('\n')) {
+        if (s.contains(',') || s.contains('"') || s.contains('\n') || s.contains('\r')) {
             "\"${s.replace("\"", "\"\"")}\""
         } else s
 }

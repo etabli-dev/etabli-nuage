@@ -3,48 +3,10 @@ title: "Établi Nuage"
 sidebar: de
 ---
 
-<img src="../_icons/icon-nuage.svg" alt="" width="80" align="right" style="margin:0 0 1rem 1rem;">
+URLs aus einer lokalen CSV oder einer über Nextcloud-WebDAV geladenen CSV prüfen. Ergebnisdateien bleiben gespeichert und können geteilt oder hochgeladen werden. Allgemeiner Dateibrowser, Kontakte und Kalender sind nicht implementiert. Der Prüfbildschirm muss aktiv bleiben.
 
-<span class="etabli-badge">Self-hosted-Client</span>
+Diese Seite beschreibt den Quellstand vom Oktober 2026. Die Änderungen im Quellcode sind nicht Teil der Downloads älterer Entwicklungsreleases. Lokale Prüfungen ersetzen keine Geräte-, Live-Server- oder Store-Abnahme.
 
-> Dein eigenes Nextcloud — Dateien, Kontakte, Kalender, Link-Prüfer — in einer App.
+[Aktueller Funktionsumfang, Voraussetzungen und Befehle (Englisch)](../current-status.qmd)
 
-**Status: in Entwicklung.** Die App bündelt vier Nextcloud-Module unter einem Konto. Dateien (WebDAV) und der Link-Prüfer laufen bereits round-trip-fähig; Kontakte (CardDAV) und Kalender (CalDAV) sind in Arbeit. Établi Nuage spricht ausschließlich mit der konfigurierten Nextcloud-Instanz und ist nicht mit der Nextcloud GmbH affiliiert.
-
-![Nuage auf Android — der Start im Zustand „nicht verbunden", bevor ein Server konfiguriert ist.](../_screens/0.1.0/01-login.png){width=320}
-
-## Wer profitiert davon
-
-Wer Nextcloud selbst hostet und unterwegs auf Dateien, Adressen und Termine zugreifen möchte, ohne die offiziellen Apps zu mischen — und für den der Link-Prüfer (zur Pflege einer URL-Liste mit Statussynchronisation zurück in die Nextcloud) ein Plus ist.
-
-## Plattformen
-
-| Plattform | Status |
-|-----------|--------|
-| iOS       | ✓      |
-| Android   | ✓      |
-
-## Datenschutz
-
-Keine Analyse-Tools, keine Drittanbieter-SDKs. Anmeldung erfolgt am eigenen self-hosted Nextcloud-Server. Anmeldedaten (Server-URL + App-Passwort) liegen ausschließlich im Plattform-Schlüsselspeicher (iOS Keychain · Android EncryptedSharedPreferences) und gehen ausschließlich an die konfigurierte Instanz.
-
-## Installation
-
-Établi Nuage befindet sich **in aktiver Entwicklung** (Kontakte/CardDAV und Kalender/CalDAV werden noch fertiggestellt). Es gibt noch keine Veröffentlichung im App Store, bei Google Play oder F-Droid.
-
-| Kanal | Status |
-|-------|--------|
-| Android (APK) | **Entwicklungs-Build** über [GitHub Releases](https://github.com/etabli-dev/etabli-nuage/releases) |
-| App Store (iOS) | geplant — noch nicht verfügbar |
-| Google Play | geplant — noch nicht verfügbar |
-| F-Droid | geplant — noch nicht verfügbar |
-
-Details siehe [Erste Schritte](getting-started.qmd).
-
-## Hervorgegangen aus
-
-Nuage ist die Weiterentwicklung von **EtabliProbe** (ursprünglich ein reiner WebDAV-basierter Link-Prüfer). Der Link-Prüfer ist heute eines von vier Modulen.
-
-## Unterstützen
-
-Wenn dir die App nützt: [Liberapay](https://liberapay.com/rabanheller/).
+[README](https://github.com/etabli-dev/etabli-nuage/blob/main/README.md) · [GitHub](https://github.com/etabli-dev/etabli-nuage)

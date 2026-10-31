@@ -12,6 +12,8 @@ struct ResultsView: View {
     @State private var filter: Filter = .all
     @State private var status: String?
     @State private var statusTone: StatusLabel.Tone = .info
+    @State private var savedFiles: [URL] = []
+    @State private var selectedFile: URL?
     @State private var sharing: ActivityShareItem?
 
     private var allResults: [CheckResult] { state.logger?.memory ?? [] }
@@ -28,7 +30,7 @@ struct ResultsView: View {
             VStack(alignment: .leading, spacing: Theme.Space.lg) {
                 PromptHeader(["probe", "results", "\(allResults.count)"])
 
-                Card(title: "totals", systemImage: "chart.bar") {
+                Card(title: "current run totals", systemImage: "chart.bar") {
                     HStack(spacing: Theme.Space.xl) {
                         statTile("total", "\(allResults.count)", color: Theme.Color.ink)
                         statTile("pass",  "\(allResults.filter(\.pass).count)", color: Theme.Color.accent)
@@ -59,11 +61,20 @@ struct ResultsView: View {
                     }
                 }
 
+                if !savedFiles.isEmpty {
+                    Card(title: "saved CSV files") {
+                        MonoLabel("Choose a file to share or upload. Completed rows remain available after restart.", color: Theme.Color.faint)
+                        Picker("CSV file", selection: $selectedFile) {
+                            ForEach(savedFiles, id: \.self) { file in Text(file.lastPathComponent).tag(Optional(file)) }
+                        }
+                    }
+                }
+
                 HStack(spacing: Theme.Space.md) {
                     PrimaryButton("Share CSV", systemImage: "square.and.arrow.up",
-                                  enabled: state.logger?.currentURL != nil) { shareCSV() }
+                                  enabled: selectedFile != nil) { shareCSV() }
                     PrimaryButton("Upload to Nextcloud", systemImage: "cloud.fill",
-                                  enabled: state.logger?.currentURL != nil) {
+                                  enabled: selectedFile != nil) {
                         Task { await uploadToNextcloud() }
                     }
                 }
@@ -73,6 +84,16 @@ struct ResultsView: View {
             .padding(Theme.Space.lg)
         }
         .background(Theme.Color.paper.ignoresSafeArea())
+        .task {
+            let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("probe_logs")
+            do {
+                savedFiles = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isRegularFileKey])
+                    .filter { $0.pathExtension == "csv" && (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true }
+                    .sorted { $0.lastPathComponent > $1.lastPathComponent }
+                selectedFile = state.logger?.currentURL ?? savedFiles.first
+            } catch let error as CocoaError where error.code == .fileReadNoSuchFile { }
+            catch { status = "Cannot list saved logs: \(error.localizedDescription)"; statusTone = .danger }
+        }
         .sheet(item: $sharing) { item in
             ActivityShareView(item: item)
         }
@@ -86,17 +107,17 @@ struct ResultsView: View {
     }
 
     private func shareCSV() {
-        guard let url = state.logger?.currentURL else { return }
+        guard let url = selectedFile else { return }
         sharing = ActivityShareItem(url: url)
     }
 
     private func uploadToNextcloud() async {
-        guard let url = state.logger?.currentURL,
+        guard let url = selectedFile,
               let c = readCreds() else {
             status = "⚠ Set Nextcloud credentials first."; statusTone = .danger; return
         }
         do {
-            let data = try Data(contentsOf: url)
+            let data = try CsvLoader.read(url)
             let dir = UserDefaults.standard.string(forKey: "nc.uploadDir") ?? "EtabliProbe"
             let name = url.lastPathComponent
             let client = WebDavClient(c)

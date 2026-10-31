@@ -32,17 +32,20 @@ public enum WebDavError: LocalizedError {
 
 public actor WebDavClient {
     let creds: WebDavCreds
-    private let session: URLSession
-    public init(_ c: WebDavCreds, session: URLSession = .shared) {
-        self.creds = c; self.session = session
-    }
+    public init(_ c: WebDavCreds) { self.creds = c }
 
-    private func userRoot(_ path: String = "") -> URL? {
-        let base = creds.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
-        let cleaned = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        var s = "\(base)/remote.php/dav/files/\(creds.username)"
-        if !cleaned.isEmpty { s += "/\(cleaned)" }
-        return URL(string: s)
+    func userRoot(_ path: String = "") -> URL? {
+        guard let base = URL(string: creds.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)),
+              base.scheme?.lowercased() == "https", base.host != nil, base.user == nil, base.password == nil,
+              base.query == nil, base.fragment == nil, !creds.username.isEmpty, !creds.appPassword.isEmpty,
+              !creds.username.contains(":"), !creds.username.contains("/"), ![".", ".."].contains(creds.username) else { return nil }
+        let parts = path.split(separator: "/").map(String.init)
+        guard parts.count <= 128, parts.allSatisfy({ ![".", ".."].contains($0) && !$0.contains("\\") && $0.rangeOfCharacter(from: .controlCharacters) == nil }) else { return nil }
+        var components = URLComponents(url: base, resolvingAgainstBaseURL: true)!
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+        let suffix = (["remote.php", "dav", "files", creds.username] + parts).map { $0.addingPercentEncoding(withAllowedCharacters: allowed)! }.joined(separator: "/")
+        components.percentEncodedPath = components.percentEncodedPath.trimmingCharacters(in: CharacterSet(charactersIn: "/")).isEmpty ? "/" + suffix : "/" + components.percentEncodedPath.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/" + suffix
+        return components.url
     }
 
     private func basicAuth() -> String {
@@ -73,7 +76,7 @@ public actor WebDavClient {
         </d:propfind>
         """.data(using: .utf8)
 
-        let (data, resp) = try await send(req)
+        let (data, resp) = try await send(req, limit: 2 * 1024 * 1024)
         let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
         guard code == 207 || code == 200 else {
             throw WebDavError.http(code, String(data: data, encoding: .utf8))
@@ -94,6 +97,8 @@ public actor WebDavClient {
     public func put(directory dir: String, file name: String, data: Data,
                     contentType: String = "application/octet-stream") async throws {
         let cleaned = dir.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let dest = cleaned.isEmpty ? name : "\(cleaned)/\(name)"
+        guard !name.isEmpty, !name.contains("/"), !name.contains("\\"), let url = userRoot(dest) else { throw WebDavError.notConfigured }
         if !cleaned.isEmpty {
             let parts = cleaned.split(separator: "/")
             var acc = ""
@@ -102,8 +107,6 @@ public actor WebDavClient {
                 try await mkcol(acc)
             }
         }
-        let dest = cleaned.isEmpty ? name : "\(cleaned)/\(name)"
-        guard let url = userRoot(dest) else { throw WebDavError.notConfigured }
         var req = URLRequest(url: url)
         req.httpMethod = "PUT"
         req.setValue(basicAuth(), forHTTPHeaderField: "Authorization")
@@ -123,23 +126,26 @@ public actor WebDavClient {
         req.setValue(basicAuth(), forHTTPHeaderField: "Authorization")
         let (body, resp) = try await send(req)
         let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
-        if code == 405 || code == 409 { return }   // already exists
+        if code == 405 { return }   // already exists
         if !(200..<300).contains(code) {
             throw WebDavError.http(code, String(data: body, encoding: .utf8))
         }
     }
 
-    private func send(_ req: URLRequest) async throws -> (Data, URLResponse) {
-        do { return try await session.data(for: req) }
-        catch { throw WebDavError.transport(error.localizedDescription) }
+    private func send(_ req: URLRequest, limit: Int = maxCSVBytes) async throws -> (Data, URLResponse) {
+        var request = req; request.timeoutInterval = 60
+        do { return try await boundedRequest(request, limit: limit) }
+        catch { try Task.checkCancellation(); throw WebDavError.transport(error.localizedDescription) }
     }
 
     // MARK: - PROPFIND parsing
     private func parseMultiStatus(_ data: Data, selfPath: String) throws -> [DavEntry] {
+        guard !(String(data: data, encoding: .utf8) ?? "").uppercased().contains("<!DOCTYPE") else { throw WebDavError.decoding("DTD declarations are not accepted") }
         let parser = DavParser(selfPath: selfPath)
         let x = XMLParser(data: data)
         x.delegate = parser
         x.shouldProcessNamespaces = true
+        x.shouldResolveExternalEntities = false
         guard x.parse() else {
             throw WebDavError.decoding(x.parserError?.localizedDescription ?? "?")
         }
@@ -200,7 +206,8 @@ private final class DavParser: NSObject, XMLParserDelegate {
             let pathOnly = URL(string: raw)?.path ?? raw
             let self0 = selfPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             let cand0 = pathOnly.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            if cand0 != self0 {
+            if cand0 != self0 && cand0.hasPrefix(self0 + "/") &&
+                !cand0.dropFirst(self0.count + 1).contains("/") && !raw.contains("://") {
                 let trimmedTail = decoded.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                 let displayName = (displayname?.isEmpty == false ? displayname : nil) ??
                     (trimmedTail.split(separator: "/").last.map(String.init) ?? trimmedTail)

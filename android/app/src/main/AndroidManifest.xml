@@ -6,11 +6,13 @@
 
     <application
         android:name=".EtabliProbeApplication"
-        android:label="Établi Probe"
+        android:label="Établi Nuage"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/Theme.EtabliProbe"
         android:allowBackup="true"
+        android:usesCleartextTraffic="true"
+        android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:supportsRtl="true">
 

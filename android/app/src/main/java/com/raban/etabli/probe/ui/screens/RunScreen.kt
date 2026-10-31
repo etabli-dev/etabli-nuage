@@ -6,6 +6,7 @@ package com.raban.etabli.probe.ui.screens
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.webkit.WebResourceError
+import android.webkit.WebResourceResponse
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -41,6 +42,8 @@ import com.raban.etabli.probe.ui.theme.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -60,6 +63,7 @@ fun RunScreen(app: EtabliProbeApplication, onSeeResults: () -> Unit) {
     var profile by remember { mutableStateOf<UsageProfile?>(null) }
     LaunchedEffect(Unit) { profile = profileStore.load() }
 
+    var runError by remember { mutableStateOf<String?>(null) }
     var running by remember { mutableStateOf(false) }
     var paused by remember { mutableStateOf(false) }
     var done by remember { mutableIntStateOf(0) }
@@ -75,39 +79,68 @@ fun RunScreen(app: EtabliProbeApplication, onSeeResults: () -> Unit) {
 
     // Foreground WebView holder
     val pageCompleter = remember { mutableStateOf<CompletableDeferred<Pair<String, String?>>?>(null) }
-    var lastFinalUrl by remember { mutableStateOf<String?>(null) }
     val webView = remember {
         WebView(app).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
+            settings.allowFileAccess = false
+            settings.allowContentAccess = false
             settings.userAgentString = USER_AGENT
-            webViewClient = object : WebViewClient() {
-                override fun onPageFinished(view: WebView?, url: String?) {
-                    lastFinalUrl = url
-                    pageCompleter.value?.complete("LOADED" to url)
-                }
-                override fun onReceivedError(view: WebView?, request: WebResourceRequest?, err: WebResourceError?) {
-                    if (request?.isForMainFrame == true) {
-                        pageCompleter.value?.complete("LOAD_ERROR: ${err?.description}" to url)
-                    }
-                }
+        }
+    }
+
+    suspend fun loadPage(url: String): Pair<String, String?> {
+        webView.stopLoading()
+        val completion = CompletableDeferred<Pair<String, String?>>()
+        pageCompleter.value = completion
+        // Each client owns its completion, so a late callback cannot finish the next probe.
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val scheme = request?.url?.scheme
+                return scheme != "http" && scheme != "https"
             }
+            override fun onPageFinished(view: WebView?, url: String?) {
+                if (url != null && url == view?.url) completion.complete("LOADED" to url)
+            }
+            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                if (request?.isForMainFrame == true) completion.complete("LOAD_ERROR: ${error?.description}" to request.url.toString())
+            }
+            override fun onReceivedHttpError(view: WebView?, request: WebResourceRequest?, response: WebResourceResponse?) {
+                if (request?.isForMainFrame == true) completion.complete("HTTP_ERROR: ${response?.statusCode}" to request.url.toString())
+            }
+        }
+        try {
+            webView.loadUrl(url)
+            return withTimeoutOrNull(timeoutMs) { completion.await() } ?: ("TIMEOUT" to webView.url)
+        } finally {
+            pageCompleter.value = null
+            webView.stopLoading()
+            completion.cancel()
         }
     }
 
     fun stop() {
-        running = false
         runJob?.cancel()
+        webView.stopLoading()
+    }
+
+    DisposableEffect(webView) {
+        onDispose {
+            runJob?.cancel()
+            pageCompleter.value?.cancel()
+            webView.stopLoading()
+            webView.destroy()
+        }
     }
 
     fun startForeground() {
         if (entries.isEmpty()) return
-        val logger = CheckLogger(app, rotation)
-        RunState.logger = logger
         total = entries.size; done = 0; pass = 0; fail = 0; current = null
-        running = true; paused = false
+        running = true; paused = false; runError = null
         runJob = scope.launch {
             try {
+                val logger = withContext(Dispatchers.IO) { CheckLogger(app, rotation) }
+                RunState.logger = logger
                 for ((i, entry) in entries.withIndex()) {
                     while (paused && running) delay(200)
                     if (!running) break
@@ -120,26 +153,22 @@ fun RunScreen(app: EtabliProbeApplication, onSeeResults: () -> Unit) {
                         )
                     } else {
                         val started = System.currentTimeMillis()
-                        val def = CompletableDeferred<Pair<String, String?>>()
-                        pageCompleter.value = def
-                        lastFinalUrl = null
-                        webView.loadUrl(entry.normalized!!)
-                        val outcome = withTimeoutOrNull(timeoutMs) { def.await() } ?: ("TIMEOUT" to null)
-                        pageCompleter.value = null
+                        val outcome = loadPage(entry.normalized!!)
                         val elapsed = System.currentTimeMillis() - started
                         CheckResult(
                             entry.rowIndex, entry.normalized, "foreground",
-                            outcome.first, outcome.second ?: lastFinalUrl, elapsed,
+                            outcome.first, outcome.second, elapsed,
                             Date(), Date(), app.installId,
                         )
                     }
-                    logger.append(res)
+                    withContext(Dispatchers.IO) { logger.append(res) }
                     if (res.pass) pass++ else fail++
                     done = i + 1
                     if (i + 1 < entries.size) delay(delayMs)
                 }
-            } catch (_: CancellationException) { /* user stop */ }
-            running = false; paused = false; current = null
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { runError = "Run stopped: ${e.message}. Completed rows remain in the log." }
+            finally { running = false; paused = false; current = null }
         }
     }
 
@@ -150,14 +179,14 @@ fun RunScreen(app: EtabliProbeApplication, onSeeResults: () -> Unit) {
         if (snapshot == null || snapshot.isEmpty) {
             current = "Import a usage-profile TXT in Settings first."; return
         }
-        val logger = CheckLogger(app, rotation)
-        RunState.logger = logger
         total = valid.size; done = 0; pass = 0; fail = 0; current = null
         lastProb = null; lastTickMinute = 0
-        running = true; paused = false
+        running = true; paused = false; runError = null
         val activeMask = mask
         runJob = scope.launch {
             try {
+                val logger = withContext(Dispatchers.IO) { CheckLogger(app, rotation) }
+                RunState.logger = logger
                 val queue = valid.toMutableList()
                 while (queue.isNotEmpty() && running) {
                     while (paused && running) delay(200)
@@ -180,52 +209,50 @@ fun RunScreen(app: EtabliProbeApplication, onSeeResults: () -> Unit) {
                     if (open) {
                         val entry = queue.removeAt(0)
                         val started = System.currentTimeMillis()
-                        val def = CompletableDeferred<Pair<String, String?>>()
-                        pageCompleter.value = def
-                        lastFinalUrl = null
-                        webView.loadUrl(entry.normalized!!)
-                        val outcome = withTimeoutOrNull(timeoutMs) { def.await() } ?: ("TIMEOUT" to null)
-                        pageCompleter.value = null
+                        val outcome = loadPage(entry.normalized!!)
                         val elapsed = System.currentTimeMillis() - started
                         val res = CheckResult(
                             entry.rowIndex, entry.normalized, "foreground",
-                            outcome.first, outcome.second ?: lastFinalUrl, elapsed,
+                            outcome.first, outcome.second, elapsed,
                             Date(), Date(), app.installId,
                         )
-                        logger.append(res)
+                        withContext(Dispatchers.IO) { logger.append(res) }
                         if (res.pass) pass++ else fail++
                         done = valid.size - queue.size
                     }
+                    if (queue.isEmpty()) break
                     // Sleep until just after the next wall-clock minute boundary.
                     val nowMs = System.currentTimeMillis()
                     val next = (nowMs / 60_000 + 1) * 60_000 + 500
                     delay((next - nowMs).coerceAtLeast(1_000))
                 }
-            } catch (_: CancellationException) { /* user stop */ }
-            running = false; paused = false; current = null
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { runError = "Run stopped: ${e.message}. Completed rows remain in the log." }
+            finally { running = false; paused = false; current = null }
         }
     }
 
     fun startBackground() {
         if (entries.isEmpty()) return
-        val logger = CheckLogger(app, rotation)
-        RunState.logger = logger
         total = entries.size; done = 0; pass = 0; fail = 0
-        running = true; paused = false
+        running = true; paused = false; runError = null
         runJob = scope.launch {
             val checker = BackgroundChecker(timeoutMs = timeoutMs, installId = app.installId)
             try {
+                val logger = withContext(Dispatchers.IO) { CheckLogger(app, rotation) }
+                RunState.logger = logger
                 for ((i, entry) in entries.withIndex()) {
                     while (paused && running) delay(200)
                     if (!running) break
                     val res = checker.probe(entry)
-                    logger.append(res)
+                    withContext(Dispatchers.IO) { logger.append(res) }
                     if (res.pass) pass++ else fail++
                     done = i + 1
                     if (i + 1 < entries.size) delay(delayMs)
                 }
-            } catch (_: CancellationException) { /* user stop */ }
-            running = false
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { runError = "Run stopped: ${e.message}. Completed rows remain in the log." }
+            finally { running = false; paused = false; current = null }
         }
     }
 
@@ -251,6 +278,8 @@ fun RunScreen(app: EtabliProbeApplication, onSeeResults: () -> Unit) {
                 MonoLabel("delay ${delayMs}ms · timeout ${timeoutMs / 1000}s", color = t.color.faint)
             }
         }
+
+        runError?.let { StatusLabel(it, tone = StatusTone.Danger) }
 
         if (running || done > 0) {
             Card(title = "progress", icon = Icons.Default.PlayArrow) {
@@ -309,7 +338,7 @@ fun RunScreen(app: EtabliProbeApplication, onSeeResults: () -> Unit) {
             RunMode.Background -> {
                 Card(title = "OS budget — read this", icon = Icons.Default.Info) {
                     MonoLabel(
-                        "Background mode runs sequential URLSession-style HTTP GETs " +
+                        "Background mode runs sequential HTTP GETs " +
                         "while the app is in the foreground. For true unattended " +
                         "background sweeps a WorkManager queue would have to be " +
                         "scheduled — out of scope for this PoC (see SUBMISSION.md).",

@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.*
@@ -31,7 +32,11 @@ import com.raban.etabli.probe.engine.WebDavCreds
 import com.raban.etabli.probe.net.WebDavClient
 import com.raban.etabli.probe.ui.RunState
 import com.raban.etabli.probe.ui.theme.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import com.raban.etabli.probe.engine.readBounded
+import com.raban.etabli.probe.engine.MAX_CSV_BYTES
 
 @Composable
 fun SourceScreen(app: EtabliProbeApplication, onPrepared: () -> Unit) {
@@ -45,7 +50,10 @@ fun SourceScreen(app: EtabliProbeApplication, onPrepared: () -> Unit) {
     var creds by remember { mutableStateOf<WebDavCreds?>(null) }
     var showDav by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { creds = app.creds.read() }
+    LaunchedEffect(Unit) {
+        try { creds = withContext(Dispatchers.IO) { app.creds.read() } }
+        catch (e: Exception) { status = "Stored credentials cannot be opened. Local CSV checking remains available."; statusTone = StatusTone.Danger }
+    }
 
     val openCsv = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -54,10 +62,13 @@ fun SourceScreen(app: EtabliProbeApplication, onPrepared: () -> Unit) {
             scope.launch {
                 busy = true; status = null
                 try {
-                    val bytes = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                        ?: throw IllegalStateException("Couldn't read file.")
-                    preview = CsvLoader.parse(bytes)
-                } catch (t: Throwable) {
+                    preview = withContext(Dispatchers.IO) {
+                        val bytes = ctx.contentResolver.openInputStream(uri)?.use { it.readBounded(MAX_CSV_BYTES) }
+                            ?: throw IllegalStateException("Couldn't read file.")
+                        CsvLoader.parse(bytes)
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (t: Exception) {
                     status = "⚠ ${t.message}"; statusTone = StatusTone.Danger
                 } finally { busy = false }
             }
@@ -90,10 +101,10 @@ fun SourceScreen(app: EtabliProbeApplication, onPrepared: () -> Unit) {
         }
 
         preview?.let { p ->
-            ColumnMapCard(p, onChoose = { idx ->
+            ColumnMapCard(p, onHeaderChanged = { preview = p.withHeader(it) }, onChoose = { idx ->
                 val raws = p.column(idx)
                 val entries = raws.mapIndexed { i, raw ->
-                    UrlEntry(rowIndex = i + 1, raw = raw, normalized = UrlNormalize.normalize(raw))
+                    UrlEntry(rowIndex = i + if (p.hasHeader) 2 else 1, raw = raw, normalized = UrlNormalize.normalize(raw))
                 }
                 RunState.prepared = entries
                 val valid = entries.count { it.valid }
@@ -117,8 +128,9 @@ fun SourceScreen(app: EtabliProbeApplication, onPrepared: () -> Unit) {
                     try {
                         val c = creds ?: throw IllegalStateException("no creds")
                         val bytes = WebDavClient(c).get(path)
-                        preview = CsvLoader.parse(bytes)
-                    } catch (t: Throwable) {
+                        preview = withContext(Dispatchers.Default) { CsvLoader.parse(bytes) }
+                    } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (t: Exception) {
                         status = "⚠ ${t.message}"; statusTone = StatusTone.Danger
                     } finally { busy = false }
                 }
@@ -128,7 +140,7 @@ fun SourceScreen(app: EtabliProbeApplication, onPrepared: () -> Unit) {
 }
 
 @Composable
-private fun ColumnMapCard(p: CsvPreview, onChoose: (Int) -> Unit) {
+private fun ColumnMapCard(p: CsvPreview, onHeaderChanged: (Boolean) -> Unit, onChoose: (Int) -> Unit) {
     val t = Coder.tokens
     var selected by remember(p) {
         // Best-guess: first column with at least one URL-looking value.
@@ -138,6 +150,10 @@ private fun ColumnMapCard(p: CsvPreview, onChoose: (Int) -> Unit) {
         mutableStateOf(idx)
     }
     Card(title = "pick the URL column", icon = Icons.Default.UploadFile) {
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Switch(checked = p.hasHeader, onCheckedChange = onHeaderChanged)
+            Text("First record contains column names", style = t.font.body)
+        }
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(t.space.sm),

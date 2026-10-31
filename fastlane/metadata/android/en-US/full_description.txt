@@ -1,1 +1,5 @@
-Etabli Nuage is a unified client for your self-hosted Nextcloud server. One account, four synced modules: Files (WebDAV browse/upload/download), Contacts (CardDAV), Calendar (CalDAV), and a Link Checker that probes a CSV of URLs and syncs result logs back to your server. Talks only to your own Nextcloud instance; credentials live in the platform secure store. (Not affiliated with Nextcloud GmbH.)
+Établi Nuage checks links from a local CSV or a CSV fetched from your Nextcloud server. Choose the URL column and header interpretation, inspect page loads or HTTP status checks, and share completed CSV logs or upload them through WebDAV.
+
+Saved logs remain selectable after restart. Runs are active-screen operations; automatic background scheduling or queue resumption is not implemented. Contacts, calendar and a general file browser are future work.
+
+No analytics or author-operated service. Checks contact the URLs you supply; pages may load external resources. Nextcloud transfers require HTTPS and an app password stored in the platform secure store. Logs contain checked URLs, timestamps and a per-install identifier. Not affiliated with Nextcloud GmbH.

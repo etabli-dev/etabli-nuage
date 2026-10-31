@@ -48,6 +48,7 @@ public struct UsageProfile: Codable, Equatable, Sendable {
         self.sourceName = sourceName
     }
 
+    public var isValid: Bool { perMinute.count == 1440 && perMinute.allSatisfy { $0.isFinite && (0...1).contains($0) } && totalRecords >= 0 && totalDays >= 0 && skippedLines >= 0 }
     public var isEmpty: Bool { totalDays == 0 || perMinute.allSatisfy { $0 == 0 } }
     public var peakMinute: Int { perMinute.indices.max(by: { perMinute[$0] < perMinute[$1] }) ?? 0 }
     public var mean: Double { perMinute.reduce(0, +) / Double(perMinute.count) }
@@ -55,6 +56,7 @@ public struct UsageProfile: Codable, Equatable, Sendable {
     /// Probability at a given minute, with the mask applied.
     public func probability(forMinute minute: Int, weekday: Int, mask: MaskMode) -> Double {
         let mod = ((minute % 1440) + 1440) % 1440
+        guard isValid else { return 0 }
         let base = perMinute[mod]
         switch mask {
         case .none:     return base
@@ -97,7 +99,8 @@ public enum MaskMode: String, CaseIterable, Identifiable, Sendable {
 public enum UsageProfileParser {
 
     /// Parse a TXT log and aggregate to a UsageProfile.
-    public static func parse(_ text: String, sourceName: String? = nil) -> UsageProfile {
+    public static func parse(_ text: String, sourceName: String? = nil) throws -> UsageProfile {
+        guard text.utf8.count <= maxCSVBytes else { throw CsvError.invalid("Usage log exceeds 10 MiB") }
         let lines = text.split(whereSeparator: { $0 == "\n" || $0 == "\r" })
         var records: [(date: Date, key: String, event: Event)] = []
         var skipped = 0
@@ -105,6 +108,7 @@ public enum UsageProfileParser {
             let line = String(raw).trimmingCharacters(in: .whitespaces)
             if line.isEmpty || line.hasPrefix("#") { continue }
             guard let r = parseLine(line) else { skipped += 1; continue }
+            guard records.count < 100_000 else { throw CsvError.invalid("Usage log has too many events") }
             records.append(r)
         }
         records.sort { $0.date < $1.date }
@@ -131,10 +135,15 @@ public enum UsageProfileParser {
         // Build per-day per-minute activity set.
         let cal = Calendar(identifier: .gregorian)
         var perDayActive: [Date: Set<Int>] = [:]
-        var allDays: Set<Date> = []
+        var allDays = Set(records.map { cal.startOfDay(for: $0.date) })
+        var expanded = 0
         for (start, end) in sessions {
-            var cur = start
+            if end <= start { continue }
+            guard end.timeIntervalSince(start) <= 31 * 24 * 60 * 60 else { throw CsvError.invalid("An activity interval exceeds 31 days; check the source timestamps") }
+            var cur = Date(timeIntervalSince1970: floor(start.timeIntervalSince1970 / 60) * 60)
             while cur < end {
+                expanded += 1
+                guard expanded <= 1_000_000 else { throw CsvError.invalid("Usage log expands to more than one million minutes") }
                 let day = cal.startOfDay(for: cur)
                 let m = cal.component(.hour, from: cur) * 60 + cal.component(.minute, from: cur)
                 perDayActive[day, default: []].insert(m)
@@ -209,6 +218,7 @@ public enum UsageProfileParser {
                 let df = DateFormatter()
                 df.locale = Locale(identifier: "en_US_POSIX")
                 df.dateFormat = fmt
+                df.isLenient = false
                 if let d = df.date(from: cand) { return d }
             }
             // ISO8601 with formatter (handles fractional seconds, Z)
@@ -267,14 +277,14 @@ public enum UsageProfileStore {
             .urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("probe_profile.json")
     }
-    public static func save(_ p: UsageProfile) {
-        if let data = try? JSONEncoder().encode(p) {
-            try? data.write(to: url, options: .atomic)
-        }
+    public static func save(_ p: UsageProfile) throws {
+        guard p.isValid else { throw CsvError.invalid("Invalid probability profile") }
+        try JSONEncoder().encode(p).write(to: url, options: .atomic)
     }
     public static func load() -> UsageProfile? {
         guard let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(UsageProfile.self, from: data)
+        guard let profile = try? JSONDecoder().decode(UsageProfile.self, from: data), profile.isValid else { return nil }
+        return profile
     }
     public static func clear() { try? FileManager.default.removeItem(at: url) }
 }

@@ -1,128 +1,105 @@
 // Copyright 2026 R. Heller
 // SPDX-License-Identifier: Apache-2.0
-
 import Foundation
 
-// CSV loader. Accepts comma- OR semicolon-separated (the two real-world
-// dialects you hit when "Save as CSV" comes from US- vs DE-locale Excel).
-// Handles double-quoted fields with escaped quotes.
-
-public struct CsvPreview {
+public let maxCSVBytes = 10 * 1024 * 1024
+public enum CsvError: LocalizedError {
+    case invalid(String)
+    public var errorDescription: String? { if case .invalid(let message) = self { return message }; return nil }
+}
+public struct CsvPreview: Sendable {
     public let headers: [String]
     public let rows: [[String]]
-    public func column(_ idx: Int) -> [String] {
-        rows.map { idx < $0.count ? $0[idx] : "" }
+    public let hasHeader: Bool
+    private let source: [[String]]
+    init(source: [[String]], hasHeader: Bool) {
+        self.source = source; self.hasHeader = hasHeader && !source.isEmpty
+        let count = source.first?.count ?? 0
+        headers = self.hasHeader ? source[0].map { $0.isEmpty ? "(blank)" : $0 } : (0..<count).map { "col \($0 + 1)" }
+        rows = self.hasHeader ? Array(source.dropFirst()) : source
     }
+    public func withHeader(_ value: Bool) -> CsvPreview { CsvPreview(source: source, hasHeader: value) }
+    public func column(_ idx: Int) -> [String] { guard headers.indices.contains(idx) else { return [] }; return rows.map { $0[idx] } }
 }
-
 public enum CsvLoader {
-    public static func parse(_ data: Data) -> CsvPreview {
-        let text = String(data: data, encoding: .utf8)
-            ?? String(data: data, encoding: .isoLatin1)
-            ?? ""
-        let delim = detectDelimiter(text)
-        let rows = tokenize(text, delim: delim)
-        guard let first = rows.first, !rows.isEmpty else {
-            return CsvPreview(headers: [], rows: [])
-        }
-        // Pad rows to the widest row.
-        let cols = rows.map(\.count).max() ?? first.count
-        let padded = rows.map { r -> [String] in
-            r + Array(repeating: "", count: max(0, cols - r.count))
-        }
-        if looksLikeHeader(padded[0]) {
-            let headers = padded[0].map { $0.isEmpty ? "(blank)" : $0 }
-            return CsvPreview(headers: headers, rows: Array(padded.dropFirst()))
-        } else {
-            let headers = (1...cols).map { "col \($0)" }
-            return CsvPreview(headers: headers, rows: padded)
-        }
+    public static func read(_ url: URL) throws -> Data {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        let data = try handle.read(upToCount: maxCSVBytes + 1) ?? Data()
+        guard data.count <= maxCSVBytes else { throw CsvError.invalid("CSV exceeds 10 MiB") }
+        return data
     }
-
-    private static func detectDelimiter(_ text: String) -> Character {
-        let head = text.prefix(8192)
-        let commas = head.filter { $0 == "," }.count
-        let semis  = head.filter { $0 == ";" }.count
-        let tabs   = head.filter { $0 == "\t" }.count
-        let scored: [(Character, Int)] = [(",", commas), (";", semis), ("\t", tabs)]
-        return scored.max(by: { $0.1 < $1.1 })?.0 ?? ","
-    }
-
-    private static func looksLikeHeader(_ row: [String]) -> Bool {
-        let nonEmpty = row.filter { !$0.isEmpty }
-        guard !nonEmpty.isEmpty else { return false }
-        let headerish = nonEmpty.filter { v in
-            let lower = v.lowercased()
-            let url = lower.hasPrefix("http://") || lower.hasPrefix("https://") || v.contains("://")
-            let num = Double(v) != nil
-            return !url && !num && v.count <= 64
-        }.count
-        return Double(headerish) / Double(nonEmpty.count) >= 0.6
-    }
-
-    // RFC-4180-ish tokenizer: handles double-quoted fields, escaped quotes,
-    // and CR/LF line endings.
-    private static func tokenize(_ text: String, delim: Character) -> [[String]] {
-        var rows: [[String]] = []
-        var current: [String] = []
-        var field = ""
-        var inQuotes = false
-        var i = text.startIndex
-        while i < text.endIndex {
-            let c = text[i]
-            if inQuotes {
-                if c == "\"" {
-                    let next = text.index(after: i)
-                    if next < text.endIndex, text[next] == "\"" {
-                        field.append("\"")
-                        i = text.index(after: next); continue
-                    }
-                    inQuotes = false
-                } else { field.append(c) }
-            } else {
-                switch c {
-                case "\"":
-                    inQuotes = true
-                case delim:
-                    current.append(field); field = ""
-                case "\r":
-                    // swallow; rely on \n to commit row
-                    break
-                case "\n":
-                    current.append(field); field = ""
-                    rows.append(current); current = []
-                default:
-                    field.append(c)
-                }
+    public static func parse(_ data: Data, hasHeader: Bool? = nil) throws -> CsvPreview {
+        guard data.count <= maxCSVBytes else { throw CsvError.invalid("CSV exceeds 10 MiB") }
+        var text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) ?? ""
+        if text.hasPrefix("\u{FEFF}") { text.removeFirst() }
+        let chars = Array(text.unicodeScalars)
+        var scores: [Unicode.Scalar: Int] = [",": 0, ";": 0, "\t": 0]
+        var quoted = false; var records = 0; var i = 0
+        while i < chars.count && records < 10 {
+            let c = chars[i]
+            if c == "\"" {
+                if quoted && i + 1 < chars.count && chars[i + 1] == "\"" { i += 2; continue }
+                quoted.toggle()
+            } else if !quoted {
+                if scores[c] != nil { scores[c, default: 0] += 1 }
+                if c == "\n" || c == "\r" { records += 1 }
             }
-            i = text.index(after: i)
+            i += 1
         }
-        if !field.isEmpty || !current.isEmpty {
-            current.append(field); rows.append(current)
+        let delimiter = [Unicode.Scalar(","), ";", "\t"].max { scores[$0, default: 0] < scores[$1, default: 0] }!
+        var rows: [[String]] = []; var row: [String] = []; var field = ""
+        var closed = false; var cells = 0; quoted = false; i = 0
+        func endField() throws {
+            guard row.count < 1024 && cells < 1_000_000 else { throw CsvError.invalid("CSV has too many columns or cells") }
+            row.append(field); field = ""; closed = false; cells += 1
         }
-        return rows
+        func endRow() throws {
+            try endField()
+            guard rows.count < 100_000 else { throw CsvError.invalid("CSV has too many records") }
+            rows.append(row); row = []
+        }
+        while i < chars.count {
+            let c = chars[i]
+            if quoted {
+                if c == "\"" {
+                    if i + 1 < chars.count && chars[i + 1] == "\"" { field.append("\""); i += 2; continue }
+                    quoted = false; closed = true
+                } else { field.unicodeScalars.append(c) }
+            } else if c == delimiter { try endField() }
+            else if c == "\r" || c == "\n" {
+                try endRow()
+                if c == "\r" && i + 1 < chars.count && chars[i + 1] == "\n" { i += 1 }
+            } else if c == "\"" && field.isEmpty && !closed { quoted = true }
+            else {
+                guard c != "\"" && !closed else { throw CsvError.invalid("Unexpected quote or text after a quoted field") }
+                field.unicodeScalars.append(c)
+            }
+            i += 1
+        }
+        guard !quoted else { throw CsvError.invalid("Unclosed quoted field") }
+        if !field.isEmpty || !row.isEmpty || closed { try endRow() }
+        let width = rows.map(\.count).max() ?? 0
+        guard width * rows.count <= 1_000_000 else { throw CsvError.invalid("CSV is too wide to preview") }
+        let padded = rows.map { $0 + Array(repeating: "", count: width - $0.count) }
+        let known: Set<String> = ["url", "urls", "link", "links", "website", "webseite", "webadresse", "address"]
+        let inferred = rows.first?.contains { known.contains($0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) } ?? false
+        return CsvPreview(source: padded, hasHeader: hasHeader ?? inferred)
     }
 }
-
-// MARK: - URL normalisation
 public enum UrlNormalize {
     public static func normalize(_ raw: String) -> String? {
-        let t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-                   .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-        guard !t.isEmpty else { return nil }
+        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        guard !text.isEmpty && text.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else { return nil }
         let candidate: String
-        let lower = t.lowercased()
-        if lower.hasPrefix("http://") || lower.hasPrefix("https://") {
-            candidate = t
-        } else if t.hasPrefix("//") {
-            candidate = "https:\(t)"
-        } else if t.contains(" ") || t.contains("\n") {
-            return nil
-        } else if t.contains(".") && !t.hasPrefix(".") {
-            candidate = "https://\(t)"
-        } else { return nil }
-        guard let url = URL(string: candidate), let s = url.scheme,
-              (s == "http" || s == "https"), url.host != nil else { return nil }
-        return url.absoluteString
+        if text.lowercased().hasPrefix("http://") || text.lowercased().hasPrefix("https://") { candidate = text }
+        else if text.hasPrefix("//") { candidate = "https:" + text }
+        else if !text.contains(":") && text.contains(".") && !text.hasPrefix(".") { candidate = "https://" + text }
+        else { return nil }
+        guard var parts = URLComponents(string: candidate), let scheme = parts.scheme?.lowercased(),
+              ["https", "http"].contains(scheme), let host = parts.host, !host.isEmpty,
+              parts.user == nil, parts.password == nil else { return nil }
+        parts.scheme = scheme
+        return parts.url?.absoluteString
     }
 }

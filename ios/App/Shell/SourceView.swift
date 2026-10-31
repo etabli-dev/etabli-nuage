@@ -43,7 +43,7 @@ struct SourceView: View {
                     }
 
                     if let preview {
-                        ColumnMapCard(preview: preview, onChoose: choose)
+                        ColumnMapCard(preview: preview, onHeaderChange: { self.preview = preview.withHeader($0) }, onChoose: choose)
                     }
 
                     if let status {
@@ -77,7 +77,7 @@ struct SourceView: View {
         guard let preview else { return }
         let raws = preview.column(columnIndex)
         let entries = raws.enumerated().map { (i, raw) in
-            UrlEntry(rowIndex: i + 1, raw: raw, normalized: UrlNormalize.normalize(raw))
+            UrlEntry(rowIndex: i + (preview.hasHeader ? 2 : 1), raw: raw, normalized: UrlNormalize.normalize(raw))
         }
         state.prepared = entries
         let valid = entries.filter(\.valid).count
@@ -93,8 +93,7 @@ struct SourceView: View {
             guard let url = urls.first else { return }
             let started = url.startAccessingSecurityScopedResource()
             defer { if started { url.stopAccessingSecurityScopedResource() } }
-            let data = try Data(contentsOf: url)
-            await MainActor.run { preview = CsvLoader.parse(data) }
+            preview = try await Task.detached { try CsvLoader.parse(CsvLoader.read(url)) }.value
         } catch {
             await MainActor.run {
                 status = "⚠ \(error.localizedDescription)"
@@ -109,7 +108,7 @@ struct SourceView: View {
         do {
             let client = WebDavClient(creds)
             let data = try await client.get(path)
-            await MainActor.run { preview = CsvLoader.parse(data) }
+            preview = try await Task.detached { try CsvLoader.parse(data) }.value
         } catch {
             await MainActor.run {
                 status = "⚠ \(error.localizedDescription)"
@@ -123,12 +122,14 @@ struct SourceView: View {
 
 private struct ColumnMapCard: View {
     let preview: CsvPreview
+    let onHeaderChange: (Bool) -> Void
     let onChoose: (Int) -> Void
     @State private var selected: Int?
 
     var body: some View {
         Card(title: "pick the URL column", systemImage: "tablecells") {
             VStack(alignment: .leading, spacing: Theme.Space.sm) {
+                Toggle("First record contains column names", isOn: Binding(get: { preview.hasHeader }, set: onHeaderChange))
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Theme.Space.sm) {
                         ForEach(Array(preview.headers.enumerated()), id: \.offset) { idx, h in
@@ -238,6 +239,9 @@ private struct ChipButton: View {
 // MARK: - Creds reader (kept inline so SourceView doesn't pull in a dep)
 
 func readCreds() -> WebDavCreds? {
+    if let saved = Keychain.get(account: "nc.credentials.v2") {
+        return try? JSONDecoder().decode(WebDavCreds.self, from: Data(saved.utf8))
+    }
     let base = Keychain.get(account: "nc.baseURL") ?? UserDefaults.standard.string(forKey: "nc.baseURL")
     let user = Keychain.get(account: "nc.username") ?? UserDefaults.standard.string(forKey: "nc.username")
     let pass = Keychain.get(account: "nc.password")

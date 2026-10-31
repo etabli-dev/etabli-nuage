@@ -3,10 +3,7 @@
 
 package com.raban.etabli.probe.engine
 
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 
 // Data models — pure value types.
 
@@ -42,8 +39,8 @@ data class CheckResult(
         result,
         finalURL.orEmpty(),
         durationMs?.toString().orEmpty(),
-        iso.format(timestampLocal),
-        utcIso.format(timestampUtc),
+        java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(timestampLocal.toInstant().atZone(java.time.ZoneId.systemDefault())),
+        java.time.format.DateTimeFormatter.ISO_INSTANT.format(timestampUtc.toInstant()),
         installId,
     )
 
@@ -52,9 +49,5 @@ data class CheckResult(
             "row_index","url","mode","result","final_url",
             "duration_ms","timestamp_local","timestamp_utc","install_id",
         )
-        private val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US)
-        private val utcIso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
     }
 }
