@@ -1,5 +1,9 @@
 # October 2026 refinement
 
+## First published CI run and follow-up
+
+On 2026-10-31, the [first published verification run](https://github.com/etabli-dev/etabli-nuage/actions/runs/41200116078) failed in the Android SDK installation step with `sdkmanager: command not found` (exit 127), before Android tests, lint or packaging ran. The workflow now explicitly installs Android command-line tools using `android-actions/setup-android` v4.0.4, pinned to its verified commit, before requesting API 36 and build-tools 35.0.0. Existing checks and artifact collection remain intact. YAML and the action reference were checked locally; the follow-up remote Android result is pending. Earlier local build and device evidence below remains separate from this failed remote run.
+
 ## Implemented product and plan
 
 The current application is the CSV link checker inherited from Probe, with
