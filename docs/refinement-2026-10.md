@@ -2,7 +2,9 @@
 
 ## First published CI run and follow-up
 
-On 2026-10-31, the [first published verification run](https://github.com/etabli-dev/etabli-nuage/actions/runs/41200116078) failed in the Android SDK installation step with `sdkmanager: command not found` (exit 127), before Android tests, lint or packaging ran. The workflow now explicitly installs Android command-line tools using `android-actions/setup-android` v4.0.4, pinned to its verified commit, before requesting API 36 and build-tools 35.0.0. Existing checks and artifact collection remain intact. YAML and the action reference were checked locally; the follow-up remote Android result is pending. Earlier local build and device evidence below remains separate from this failed remote run.
+On 2026-10-31, the [first published verification run](https://github.com/etabli-dev/etabli-nuage/actions/runs/41200116078) failed in the Android SDK installation step with `sdkmanager: command not found` (exit 127), before Android tests, lint or packaging ran. The workflow now explicitly installs Android command-line tools using `android-actions/setup-android` v4.0.4, pinned to its verified commit, before requesting API 36 and build-tools 35.0.0. Existing checks and artifact collection remain intact. YAML and the action reference were checked locally before the follow-up run. Earlier local build and device evidence below remains separate from this failed remote run.
+
+Later on 2026-10-31, the [follow-up verification run](https://github.com/etabli-dev/etabli-nuage/actions/runs/41200535657) passed for [commit `0a662ac582c7`](https://github.com/etabli-dev/etabli-nuage/commit/0a662ac582c7e05d430a807ed3628fe546cb0f1b): Android `testDebugUnitTest lintDebug assembleDebug bundleRelease` and the full unsigned iOS simulator build succeeded. The [documentation build and deployment](https://github.com/etabli-dev/etabli-nuage/actions/runs/41200535715) also passed for that commit. These results verify compilation and the recorded automated checks; installed application journeys, release signing and store acceptance remain separate gates.
 
 ## Implemented product and plan
 
@@ -24,7 +26,8 @@ Sequence: bound/cancel status probes and transfers; validate DAV origins and pat
 without altering source files; make CSV header interpretation explicit and preserve
 quoted records; make append-only logs durable before reporting success; correct
 scope, add unit/loopback failure tests and run Android checks. Then inspect the
-corresponding Swift paths and keep unrun iOS/device/live-Nextcloud gates explicit.
+corresponding Swift paths and keep device/live-Nextcloud gates explicit; the
+subsequent unsigned iOS compilation result is recorded above.
 
 
 ## Android submission compatibility milestone
@@ -77,16 +80,17 @@ No claim of universally immediate header delivery is made. Apple's
 [response delegate contract](https://developer.apple.com/documentation/foundation/urlsessiondatadelegate/urlsession(_:datatask:didreceive:completionhandler:))
 is used to cancel once the platform exposes the response.
 
-Unresolved external acceptance: current SwiftUI/Xcode build, Android/iOS device
-WebView/lifecycle/backup/accessibility checks, and a real Nextcloud app-password
+Unresolved external acceptance: Android/iOS device WebView, lifecycle, backup and
+accessibility checks, and a real Nextcloud app-password
 journey. Local HTTP/TLS fixtures establish transport behavior, not a production
 server connection. Next release action: complete those device/account checks,
 configure signing and prepare store metadata for approval. The iOS display name is corrected from Focus; an explicit ATS setting permits
-user-entered HTTP targets while DAV remains HTTPS-only. These project settings
-need the outstanding Xcode/device verification. General file browsing,
+user-entered HTTP targets while DAV remains HTTPS-only. The project compiled with
+these settings in the successful unsigned iOS CI build; device behavior remains
+unverified. General file browsing,
 Contacts/Calendar and unattended queue scheduling stay outside this release.
 
-CI now includes an unsigned iOS simulator build of the existing project in addition to the locally exercised Swift core check. That CI step is prepared, not observed; a local Xcode application is unavailable.
+The 2026-10-31 follow-up CI run above passed the full unsigned iOS simulator build and Swift core checks. A local Xcode application is unavailable; no installed iOS runtime result is claimed.
 
 ## Local credential lifecycle review
 
