@@ -4,7 +4,7 @@ title: "Current implementation and first use"
 
 Check URLs from a local CSV or a CSV retrieved by Nextcloud WebDAV path. Keep and share per-run CSV results, optionally uploading them to Nextcloud. A general file browser, Contacts and Calendar are not implemented. Runs require the run screen to stay active.
 
-This page describes the October 2026 source revision. These source changes are not part of older development release downloads. Local checks are distinct from device, live-service and store acceptance.
+This page describes the October–November 2026 source revision. These source changes are not part of older development release downloads. Local checks are distinct from device, live-service and store acceptance.
 
 ## Build from a clean checkout
 
@@ -20,6 +20,8 @@ These commands build from this source tree. Debug APKs are development artifacts
 
 ## Use and verification
 
-Read the [repository README](https://github.com/etabli-dev/etabli-nuage/blob/main/README.md) for the exact application workflow, privacy/storage behavior and platform differences. The [October refinement record](https://github.com/etabli-dev/etabli-nuage/blob/main/docs/refinement-2026-10.md) records findings, changes, observed checks, deferred work and the next release action.
+Read the [repository README](https://github.com/etabli-dev/etabli-nuage/blob/main/README.md) for the exact application workflow, privacy/storage behavior and platform differences. The [October–November refinement record](https://github.com/etabli-dev/etabli-nuage/blob/main/docs/refinement-2026-10.md) records findings, changes, observed checks, deferred work and the next release action.
 
 Observed remote verification on 2026-10-31: [commit `0a662ac582c7`](https://github.com/etabli-dev/etabli-nuage/commit/0a662ac582c7e05d430a807ed3628fe546cb0f1b) passed [Android tests, lint, debug APK and unsigned release AAB packaging, plus the full unsigned iOS simulator build](https://github.com/etabli-dev/etabli-nuage/actions/runs/41200535657). Its [documentation build and deployment](https://github.com/etabli-dev/etabli-nuage/actions/runs/41200535715) also passed. Device journeys, live-service acceptance where applicable, release signing and store submission remain separate from these results.
+
+On 2026-11-02, the debug APK identified in the refinement record passed Android CSV import, foreground HTTP 200/404/invalid-URL checks against an owned loopback server, append preservation, share-chooser cancellation and saved-CSV persistence after restart on an API 35 ARM64/4 KiB emulator. Inputs were unchanged and the original log rows were preserved. Live Nextcloud, background queues, broader lifecycle/backup/accessibility, physical-device, 16 KiB, installed iOS and signed distribution remain open.

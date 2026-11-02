@@ -1,4 +1,4 @@
-# October 2026 refinement
+# October–November 2026 refinement
 
 ## First published CI run and follow-up
 
@@ -80,9 +80,7 @@ No claim of universally immediate header delivery is made. Apple's
 [response delegate contract](https://developer.apple.com/documentation/foundation/urlsessiondatadelegate/urlsession(_:datatask:didreceive:completionhandler:))
 is used to cancel once the platform exposes the response.
 
-Unresolved external acceptance: Android/iOS device WebView, lifecycle, backup and
-accessibility checks, and a real Nextcloud app-password
-journey. Local HTTP/TLS fixtures establish transport behavior, not a production
+Unresolved external acceptance: broader Android lifecycle, backup and accessibility checks, installed iOS WebView behavior, and a real Nextcloud app-password journey. The scoped November 2 Android foreground CSV/WebView results are recorded below. Local HTTP/TLS fixtures establish transport behavior, not a production
 server connection. Next release action: complete those device/account checks,
 configure signing and prepare store metadata for approval. The iOS display name is corrected from Focus; an explicit ATS setting permits
 user-entered HTTP targets while DAV remains HTTPS-only. The project compiled with
@@ -97,3 +95,38 @@ The 2026-10-31 follow-up CI run above passed the full unsigned iOS simulator bui
 Confirmed: Disconnect could clear Nextcloud credentials while Save & test waited for DAV, then a late successful response wrote the credentials again. Connection attempts now carry a generation, and credential writes and removal share a lock. Disconnect invalidates pending writes and cancels the active UI connection job. Regression coverage starts with an existing account, releases a delayed result after removal, and verifies the account stays absent while the installation ID is retained; another case rejects an older attempt after a newer one succeeds.
 
 Final native build evidence (2026-10-30, inspected 2026-10-31): `testDebugUnitTest lintDebug assembleDebug bundleRelease` passed in `nuage-android-device-prep`. The JUnit XML records 18 tests, zero failures, errors or skips. Both credential lifecycle regressions pass, including preservation of the installation ID after Disconnect. Debug APK and unsigned release AAB include these changes. Installed user journeys and signing/store acceptance remain separate gates.
+
+## Installed Android CSV journeys — 2026-11-02
+
+The installed debug APK SHA-256 was
+`2bd446269b51c7068ea843e0389ded9c878ef853336f1f1d502a821229d6c2d4`.
+On the API 35 ARM64 emulator with 4 KiB pages, an Android file-picker import
+preserved explicit header/URL-column mapping and a quoted comma in the synthetic
+CSV. With guest external networking disabled, the first two-row foreground run
+recorded Chromium's `LOAD_ERROR: net::ERR_UNSAFE_PORT` for loopback port 1 and
+`SKIPPED: invalid URL` for an unsupported ftp URL. This was not a TCP refusal test.
+The Android share chooser displayed the saved `probe.csv`; it was cancelled
+without selecting a recipient. The saved CSV remained available and byte-identical
+after force-stop/relaunch.
+
+A second three-row CSV used an owned HTTP server bound to host `127.0.0.1` through
+one temporary `adb reverse` route. The actual foreground WebView run completed
+3/3 with one pass and two failures: `LOADED` for HTTP 200, `HTTP_ERROR: 404` for
+HTTP 404, and `SKIPPED: invalid URL`. Default append logging retained the original
+two rows as an exact byte prefix and added the three correctly indexed rows.
+The resulting five-row CSV and both source CSVs were preserved; hashes confirmed
+input integrity and unchanged saved output after restart. Current-run totals
+reset on process restart while the saved CSV remained selectable/shareable, as
+documented. Delay 1000 ms, timeout 15 s and append mode were unchanged.
+
+The owned reverse route was removed, the owned server stopped and guest network
+settings restored. Screenshots, hierarchies, server request logs, CSV contents,
+hashes and receipts are retained in the suite workspace
+`.refinement/2026-10-30/android-local/games-flutter-20261102-pass1/`
+(`nuage-result.json`, `nuage-positive-result.json`, `RESULTS.md`). These checks
+establish the scoped installed Android foreground CSV/HTTP/log-persistence paths.
+They do not verify a production server or Nextcloud account, background queues,
+backup/restore, broad lifecycle/accessibility, physical-device, 16 KiB or installed
+iOS behavior. Private signing and store acceptance remain open.
+
+The earlier account-free pass on the same APK also verified Source/Run/Results empty states, picker cancellation, disabled unauthenticated WebDAV fetch, missing-field/HTTPS/username validation, masked passwords, a refused local HTTPS connection and relaunch without retaining failed credentials. Its separate suite receipt is `android-local/retry-20261102/native-journey-results.json`; neither pass contacted an external Nextcloud account.
