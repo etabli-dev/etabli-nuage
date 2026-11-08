@@ -85,6 +85,20 @@ fun ResultsPane(state: NuageState, onExport: () -> Unit) {
                 }
             }
         }
+        state.journalPath?.let { path ->
+            androidx.compose.foundation.text.selection.SelectionContainer {
+                Text("Local run log: $path", style = t.font.mono)
+            }
+        }
+        val earlierLogs = state.previousRunLogs.filter { it != state.journalPath }
+        if (earlierLogs.isNotEmpty()) {
+            Card("previous local runs (${earlierLogs.size})") {
+                androidx.compose.foundation.text.selection.SelectionContainer {
+                    Text(earlierLogs.take(3).joinToString("\n"), style = t.font.mono)
+                }
+                BodyText("CSV files remain in this folder after restart.", color = t.color.faint)
+            }
+        }
         state.resultsNotice?.let { NoticeLabel(it) }
         Row(horizontalArrangement = Arrangement.spacedBy(t.space.sm), verticalAlignment = Alignment.CenterVertically) {
             ResultFilter.entries.forEach { f ->

@@ -61,6 +61,8 @@ class NuageStateTest {
             assertEquals(2, state.failCount)
             assertEquals(Tone.Accent, state.runNotice?.tone)
             assertEquals(3, state.unsavedCount)
+            val journal = CsvLoader.parse(Files.readAllBytes(state.journalPath!!), hasHeader = true)
+            assertEquals(listOf("200", "404", "SKIPPED: invalid URL"), journal.column(3))
             assertFalse(state.requestQuit())
             assertTrue(state.confirmQuit)
 
@@ -98,6 +100,8 @@ class NuageStateTest {
             job.join()
             assertFalse(state.running)
             assertEquals(listOf("200"), state.results.map { it.result })
+            val journal = CsvLoader.parse(Files.readAllBytes(state.journalPath!!), hasHeader = true)
+            assertEquals(listOf("200"), journal.column(3))
             assertTrue(state.runNotice!!.text.startsWith("Cancelled after 1 of 3"))
 
             state.requestStart()
@@ -204,4 +208,36 @@ class NuageStateTest {
             }
         }
     }
+    @Test fun delayedUploadDoesNotMarkANewerRunAsSaved() = runBlocking {
+        val cert = HeldCertificate.Builder().addSubjectAlternativeName("localhost").build()
+        val serverTls = HandshakeCertificates.Builder().heldCertificate(cert).build()
+        val clientTls = HandshakeCertificates.Builder().addTrustedCertificate(cert.certificate).build()
+        val transport = OkHttpClient.Builder().sslSocketFactory(clientTls.sslSocketFactory(), clientTls.trustManager).build()
+        MockWebServer().use { checks ->
+            MockWebServer().use { dav ->
+                dav.useHttps(serverTls.sslSocketFactory(), false)
+                repeat(2) { checks.enqueue(MockResponse().setResponseCode(200)) }
+                val input = tmp.newFile("generation.csv").toPath()
+                Files.writeString(input, "url\n${checks.url("/ok")}\n")
+                val state = newState { WebDavClient(it, transport) }
+                state.openFile(input).join()
+                assertTrue(state.prepare())
+                state.startRun()!!.join()
+                state.saveAccount(dav.url("/").toString(), "me", "Out")
+                state.uploadResults("old.csv")
+                dav.enqueue(MockResponse().setResponseCode(405))
+                dav.enqueue(MockResponse().setResponseCode(201).setHeadersDelay(1, TimeUnit.SECONDS))
+                val upload = state.submitPassword("pw")!!
+                withContext(Dispatchers.IO) {
+                    assertNotNull(dav.takeRequest(3, TimeUnit.SECONDS))
+                    assertNotNull(dav.takeRequest(3, TimeUnit.SECONDS))
+                }
+                state.startRun()!!.join()
+                upload.join()
+                assertEquals(1, state.unsavedCount)
+                assertFalse(state.requestQuit())
+            }
+        }
+    }
+
 }

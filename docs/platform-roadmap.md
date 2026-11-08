@@ -5,6 +5,8 @@ macOS, iOS and Android. It separates what exists and was verified from what is
 planned; "not verified locally (CI only)" means a build is configured but has not
 run on that platform yet.
 
+See the [Apple build and recovery audit](apple-audit-2026-11-08.md) for the current local build evidence and recovery fixes.
+
 ## 1. Platform role
 
 Établi Nuage runs on **both desktop and mobile, desktop first**. Checking a CSV of
@@ -28,7 +30,7 @@ the results CSV.
 |---|---|---|---|---|---|
 | Ubuntu/Debian | Development preview | Kotlin 2.2.20, Compose Multiplatform 1.9.0 (Material 3) on JVM 17 with a bundled runtime, in [`desktop/`](https://github.com/etabli-dev/etabli-nuage/tree/main/desktop) | `cd desktop && ./gradlew packageDeb` (Compose Gradle plugin, jpackage) | Locally on Ubuntu 26.04 x86-64 (X11 under Xvfb), 2026-11-08: 56 unit and UI tests passed; the packaged app from the `.deb` payload opened a CSV through the GTK file dialog, by drag and drop and as an argument, ran checks against a loopback HTTP server, listed the results and exported them through the save dialog; `.deb` metadata and contents inspected, not installed system-wide; no real Nextcloud server contacted. The CI job is written but has not run yet | None. Once the workflow runs, an unsigned `.deb` is available as a CI artifact |
 | Windows | Development preview (same code as Linux) | as Ubuntu/Debian | `./gradlew packageMsi` on Windows (the Compose plugin downloads WiX 3) | Not verified locally (CI only); the CI job has not run yet | None. Unsigned `.msi` CI artifact once the workflow runs |
-| macOS | Development preview (same code as Linux) | as Ubuntu/Debian | `./gradlew packageDmg` on macOS | Not verified locally (CI only); the CI job has not run yet | None. Unsigned `.dmg` CI artifact (Apple silicon runner) once the workflow runs |
+| macOS | Development preview (same code as Linux) | as Ubuntu/Debian | `./gradlew packageDmg` on macOS | Final-source local tests (59 passed) and DMG packaging passed in the [Apple audit](apple-audit-2026-11-08.md); interactive/live-server acceptance remains | Local unsigned DMG; no signed release |
 | iOS | In development | SwiftUI + Foundation, [`ios/EtabliProbe.xcodeproj`](https://github.com/etabli-dev/etabli-nuage/tree/main/ios) | Xcode or `xcodebuild` (iOS 17+) | CI on macOS 15: Swift core checks and the unsigned simulator build passed (first on 2026-10-31, again on 2026-11-02). No installed simulator or device journey is recorded | None. App Store planned |
 | Android | In development | Kotlin 1.9.24, Jetpack Compose, OkHttp, AGP 8.13.2, [`android/`](https://github.com/etabli-dev/etabli-nuage/tree/main/android) | `cd android && ./gradlew testDebugUnitTest lintDebug assembleDebug bundleRelease` | CI: tests, lint, debug APK and unsigned release AAB passed (2026-10-31 and 2026-11-02). Emulator journeys on API 35 (2026-11-02) are recorded in the [refinement record](refinement-2026-10.md) | A v0.1.0 APK from June 2026 (older source) exists only as an unpublished draft GitHub release. Google Play and F-Droid planned |
 
@@ -37,10 +39,10 @@ drag and drop or a command-line argument; choose the URL column (with the mobile
 header detection and column guess); run HTTP status checks one at a time with
 progress and cancel; show a filterable results table; export the results CSV to
 a chosen path; fetch a CSV from and upload results to Nextcloud over WebDAV. The
-Nextcloud app password is asked once per session and kept in memory only.
+Nextcloud app password is asked once per session and kept in memory only. Each completed row is flushed to a separate local CSV; previous run files are listed after restart.
 
 What it does not do yet: render pages in a web view (mobile foreground mode),
-scheduled runs, a durable per-run log that survives a crash, remembering the app
+scheduled runs, remembering the app
 password in the OS keyring, signed installers.
 
 ## 3. Architecture
@@ -203,7 +205,7 @@ Ordered so they can be executed one after another; M1 and M2 need no new account
 3. **M3 — Durable desktop log.** Port the mobile append-only log: each completed
    row is flushed to a per-run file in the per-user data folder before it counts,
    and saved runs are listed after a restart. *Exit:* killing the app during a
-   run leaves a valid CSV with every completed row; tests cover it.
+   run leaves a valid CSV with every completed row; tests cover it. Implementation and persistence/cancellation regressions now pass; the manual process-kill exercise remains.
 4. **M4 — App password in the OS keyring (optional "remember").** After the owner
    picks a maintained library or approach, store the Nextcloud app password in the
    Secret Service (Linux), Credential Manager (Windows) or Keychain (macOS), never

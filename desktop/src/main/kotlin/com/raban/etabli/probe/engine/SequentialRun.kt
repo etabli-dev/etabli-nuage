@@ -16,7 +16,7 @@ suspend fun runSequentialChecks(
     delayMs: Long,
     probe: suspend (UrlEntry) -> CheckResult,
     onStart: (index: Int, entry: UrlEntry) -> Unit = { _, _ -> },
-    onResult: (index: Int, result: CheckResult) -> Unit,
+    onResult: suspend (index: Int, result: CheckResult) -> Unit,
 ) {
     require(delayMs >= 0) { "Delay must not be negative" }
     for ((i, entry) in entries.withIndex()) {

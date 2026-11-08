@@ -13,6 +13,7 @@ import com.raban.etabli.probe.engine.CheckResult
 import com.raban.etabli.probe.engine.CsvLoader
 import com.raban.etabli.probe.engine.CsvPreview
 import com.raban.etabli.probe.engine.MAX_CSV_BYTES
+import com.raban.etabli.probe.engine.ResultJournal
 import com.raban.etabli.probe.engine.ResultsCsv
 import com.raban.etabli.probe.engine.UrlEntry
 import com.raban.etabli.probe.engine.WebDavCreds
@@ -27,6 +28,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.AccessDeniedException
@@ -167,6 +169,13 @@ class NuageState(
     var runNotice by mutableStateOf<Notice?>(null)
     val results = mutableStateListOf<CheckResult>()
     private var savedCount by mutableIntStateOf(0)
+    private var runGeneration = 0L
+    private val journal = ResultJournal(store.file.toAbsolutePath().parent.resolve("logs"))
+    val previousRunLogs = mutableStateListOf<Path>().apply {
+        try { addAll(journal.savedRuns()) } catch (_: Exception) { /* The new run reports write failures. */ }
+    }
+    var journalPath by mutableStateOf<Path?>(null)
+        private set
     val unsavedCount: Int get() = results.size - savedCount
     private var runStartedAt: LocalDateTime? = null
     private var runJob: Job? = null
@@ -182,7 +191,9 @@ class NuageState(
         if (running || prepared.none { it.valid }) return null
         val entries = prepared
         val snapshot = settings
+        runGeneration++
         results.clear()
+        journalPath = null
         savedCount = 0
         done = 0; total = entries.size; passCount = 0; failCount = 0
         runNotice = null; resultsNotice = null
@@ -191,10 +202,14 @@ class NuageState(
         val probe = newChecker(snapshot.timeoutMs, snapshot.installId)
         return scope.launch {
             try {
+                val path = withContext(io) { journal.create() }
+                journalPath = path
+                previousRunLogs.add(0, path)
                 runSequentialChecks(
                     entries, snapshot.delayMs, probe,
                     onStart = { _, entry -> current = entry.normalized ?: entry.raw },
                     onResult = { index, result ->
+                        withContext(io + NonCancellable) { journal.append(path, result) }
                         results += result
                         done = index + 1
                         if (result.pass) passCount++ else failCount++
@@ -205,7 +220,7 @@ class NuageState(
                 runNotice = Notice("Cancelled after $done of $total. Completed rows are kept; export them from Results.")
                 throw e
             } catch (e: Exception) {
-                runNotice = Notice("Run stopped: ${describe(e)}. Completed rows are kept.", Tone.Danger)
+                runNotice = Notice("Run stopped: ${describe(e)}. Completed rows remain in this window; export them before closing.", Tone.Danger)
             } finally {
                 running = false
                 current = null
@@ -224,13 +239,18 @@ class NuageState(
 
     fun exportTo(path: Path): Job {
         val snapshot = results.toList()
+        val generation = runGeneration
         return scope.launch {
             try {
                 withContext(io) { ResultsCsv.write(snapshot, path) }
-                savedCount = maxOf(savedCount, snapshot.size)
-                resultsNotice = Notice("Saved ${snapshot.size} rows to $path", Tone.Accent)
+                if (runGeneration == generation) {
+                    savedCount = maxOf(savedCount, snapshot.size)
+                    resultsNotice = Notice("Saved ${snapshot.size} rows to $path", Tone.Accent)
+                }
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { resultsNotice = Notice("Export failed: ${describe(e)}", Tone.Danger) }
+            catch (e: Exception) {
+                if (runGeneration == generation) resultsNotice = Notice("Export failed: ${describe(e)}", Tone.Danger)
+            }
         }
     }
 
@@ -323,17 +343,20 @@ class NuageState(
         val snapshot = results.toList()
         if (snapshot.isEmpty()) return null
         val dir = settings.uploadDir
+        val generation = runGeneration
         return scope.launch {
             davBusy = true
             try {
                 val bytes = ResultsCsv.encode(snapshot).toByteArray(Charsets.UTF_8)
                 newWebDav(creds).put(dir, fileName, bytes, "text/csv; charset=utf-8")
-                savedCount = maxOf(savedCount, snapshot.size)
-                resultsNotice = Notice("Uploaded ${snapshot.size} rows to ${dir.trim('/')}/$fileName", Tone.Accent)
+                if (runGeneration == generation) {
+                    savedCount = maxOf(savedCount, snapshot.size)
+                    resultsNotice = Notice("Uploaded ${snapshot.size} rows to ${dir.trim('/')}/$fileName", Tone.Accent)
+                }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 forgetRejectedPassword(e)
-                resultsNotice = Notice("Upload failed: ${describe(e)}", Tone.Danger)
+                if (runGeneration == generation) resultsNotice = Notice("Upload failed: ${describe(e)}", Tone.Danger)
             } finally { davBusy = false }
         }
     }

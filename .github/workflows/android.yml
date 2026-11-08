@@ -46,3 +46,5 @@ jobs:
         run: python3 scripts/check_http.py /tmp/nuage-core-check
       - name: Build unsigned iOS simulator application
         run: xcodebuild -project ios/EtabliProbe.xcodeproj -target EtabliProbe -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build
+      - name: Build unsigned iOS device Release app
+        run: xcodebuild -project ios/EtabliProbe.xcodeproj -target EtabliProbe -configuration Release -sdk iphoneos CODE_SIGNING_ALLOWED=NO build
