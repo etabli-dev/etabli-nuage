@@ -137,7 +137,8 @@ class NuageStateTest {
     }
 
     @Test fun nextcloudPasswordIsAskedPerSessionAndNeverSaved() = runBlocking {
-        val cert = HeldCertificate.Builder().addSubjectAlternativeName("localhost").build()
+        val cert = HeldCertificate.Builder().addSubjectAlternativeName("localhost")
+            .addSubjectAlternativeName("127.0.0.1").addSubjectAlternativeName("::1").build()
         val serverTls = HandshakeCertificates.Builder().heldCertificate(cert).build()
         val clientTls = HandshakeCertificates.Builder().addTrustedCertificate(cert.certificate).build()
         val transport = OkHttpClient.Builder().sslSocketFactory(clientTls.sslSocketFactory(), clientTls.trustManager).build()
@@ -185,7 +186,8 @@ class NuageStateTest {
     }
 
     @Test fun uploadsResultsAsCsvIntoTheConfiguredFolder() = runBlocking {
-        val cert = HeldCertificate.Builder().addSubjectAlternativeName("localhost").build()
+        val cert = HeldCertificate.Builder().addSubjectAlternativeName("localhost")
+            .addSubjectAlternativeName("127.0.0.1").addSubjectAlternativeName("::1").build()
         val serverTls = HandshakeCertificates.Builder().heldCertificate(cert).build()
         val clientTls = HandshakeCertificates.Builder().addTrustedCertificate(cert.certificate).build()
         val transport = OkHttpClient.Builder().sslSocketFactory(clientTls.sslSocketFactory(), clientTls.trustManager).build()
@@ -216,7 +218,8 @@ class NuageStateTest {
         }
     }
     @Test fun delayedUploadDoesNotMarkANewerRunAsSaved() = runBlocking {
-        val cert = HeldCertificate.Builder().addSubjectAlternativeName("localhost").build()
+        val cert = HeldCertificate.Builder().addSubjectAlternativeName("localhost")
+            .addSubjectAlternativeName("127.0.0.1").addSubjectAlternativeName("::1").build()
         val serverTls = HandshakeCertificates.Builder().heldCertificate(cert).build()
         val clientTls = HandshakeCertificates.Builder().addTrustedCertificate(cert.certificate).build()
         val transport = OkHttpClient.Builder().sslSocketFactory(clientTls.sslSocketFactory(), clientTls.trustManager).build()
@@ -249,7 +252,7 @@ class NuageStateTest {
                 val upload = state.submitPassword("pw")!!
                 try {
                     // Yield the test scope and hold PUT until the newer run is complete.
-                    // A fixed header delay races with slower Windows TLS/startup and CI scheduling.
+                    // The ordering must not depend on a fixed delay or CI scheduling speed.
                     withTimeout(15_000) { uploadArrived.await() }
                     withTimeout(15_000) { state.startRun()!!.join() }
                     releaseUpload.countDown()

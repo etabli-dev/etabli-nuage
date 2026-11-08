@@ -18,17 +18,20 @@ The package is not Developer ID signed or notarized. The test suite covers deskt
 
 ## Windows CI follow-up, 2026-11-09
 
-The first exact-commit Windows workflow failed the delayed-upload regression's
-three-second request wait, then stalled until the job's 30-minute deadline.
-Linux and macOS packaging passed in that run. The regression now holds the PUT
-response behind an explicit bounded gate until the newer run completes, and
-releases/cancels it during cleanup. WebDAV request assertions are bounded;
-per-test progress and a ten-minute test-step limit preserve useful failure
-reports without consuming the entire packaging job.
+The first exact-commit Windows workflow failed a request wait, then stalled on
+an unbounded request assertion until the job deadline. Bounded request checks,
+per-test progress, and a deterministic delayed-PUT gate exposed the actual cause
+in the next run: Windows MockWebServer URLs used `127.0.0.1`, while the test TLS
+certificate covered only `localhost`. This was a fixture hostname mismatch,
+not evidence that production hostname verification should be weakened.
 
-The updated complete desktop suite passed locally again: 59 tests, no failures,
-errors or skips (one Gradle worker). A final scoped repeat also passed after
-adding an explicit assertion that the held PUT returns success rather than the
-fallback timeout response. The original Windows failure is not treated
-as resolved until the updated Windows CI run passes. Production code and the
-previously verified DMG are unchanged by this test/CI follow-up.
+All loopback HTTPS fixtures now cover localhost, IPv4 loopback and IPv6 loopback.
+A dedicated literal-IPv4 request regression preserves normal hostname validation.
+The delayed-upload test still holds a successful PUT response behind an explicit
+bounded gate until the newer run completes, and releases/cancels it on cleanup.
+Per-test logs and a ten-minute test-step limit keep future failures diagnosable.
+
+The earlier bounded-gate changes passed 59 local tests and a final scoped repeat.
+The complete certificate-refined suite passed locally: 60 tests, no failures,
+errors or skips, including the explicit literal-IPv4 regression. Windows CI
+must still confirm the platform correction. Production code and the previously verified DMG are unchanged.

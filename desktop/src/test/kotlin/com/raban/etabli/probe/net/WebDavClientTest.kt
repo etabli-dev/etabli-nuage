@@ -21,16 +21,27 @@ import java.util.concurrent.TimeUnit
 // Ported from android/.../net/WebDavClientTest.kt. A loopback HTTPS server with a test-only
 // certificate stands in for Nextcloud; the client keeps normal certificate validation.
 class WebDavClientTest {
-    private fun fixture(run: suspend (MockWebServer, WebDavClient) -> Unit) = runBlocking {
-        val cert = HeldCertificate.Builder().addSubjectAlternativeName("localhost").build()
+    private fun fixture(literalHost: String? = null, run: suspend (MockWebServer, WebDavClient) -> Unit) = runBlocking {
+        val cert = HeldCertificate.Builder().addSubjectAlternativeName("localhost")
+            .addSubjectAlternativeName("127.0.0.1").addSubjectAlternativeName("::1").build()
         val serverTls = HandshakeCertificates.Builder().heldCertificate(cert).build()
         val clientTls = HandshakeCertificates.Builder().addTrustedCertificate(cert.certificate).build()
         MockWebServer().use { server ->
             server.useHttps(serverTls.sslSocketFactory(), false)
+            if (literalHost != null) server.start(java.net.InetAddress.getByName(literalHost), 0)
             val transport = OkHttpClient.Builder().sslSocketFactory(clientTls.sslSocketFactory(), clientTls.trustManager).build()
-            val client = WebDavClient(WebDavCreds(server.url("/nextcloud").toString(), "a+b", "app-secret"), transport)
+            val base = server.url("/nextcloud").newBuilder().apply {
+                if (literalHost != null) host(literalHost)
+            }.build()
+            val client = WebDavClient(WebDavCreds(base.toString(), "a+b", "app-secret"), transport)
             run(server, client)
         }
+    }
+
+    @Test fun httpsFixtureAcceptsLiteralIpv4WithNormalHostnameVerification() = fixture("127.0.0.1") { server, client ->
+        server.enqueue(MockResponse().setResponseCode(200).setBody("loopback"))
+        assertEquals("loopback", client.get("test.csv").toString(Charsets.UTF_8))
+        assertEquals(1, server.requestCount)
     }
 
     @Test fun propfindUsesCustomMethodAuthenticationAndPreservesPlusNames() = fixture { server, client ->
