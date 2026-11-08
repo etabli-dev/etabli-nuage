@@ -15,7 +15,7 @@ paths retain the Probe name for compatibility. Not affiliated with Nextcloud Gmb
 
 Établi Nuage is **under active development**. There are no App Store, Google Play or F-Droid releases yet.
 
-- **Android:** install the current **development build** as a signed **APK** from **[GitHub Releases](../../releases)**.
+- **Android:** a development **APK** (v0.1.0, June 2026, older source) is prepared as a draft on GitHub Releases but not published yet; build from source meanwhile (below).
 - **App Store (iOS):** planned — not yet available.
 - **Google Play:** planned — not yet available.
 - **F-Droid:** planned — not yet available.
