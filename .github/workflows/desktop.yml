@@ -1,0 +1,69 @@
+name: Desktop packages
+on:
+  push:
+    branches: [main, 'refine/**']
+    paths:
+      - 'desktop/**'
+      - 'design/**'
+      - 'LICENSE'
+      - '.github/workflows/desktop.yml'
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - 'design/**'
+      - 'LICENSE'
+      - '.github/workflows/desktop.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux (.deb)
+            os: ubuntu-24.04
+            task: packageDeb
+            format: deb
+          - name: Windows (.msi)
+            os: windows-latest
+            task: packageMsi
+            format: msi
+          - name: macOS (.dmg)
+            os: macos-15
+            task: packageDmg
+            format: dmg
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            desktop/*.gradle.kts
+            desktop/gradle/wrapper/gradle-wrapper.properties
+      - name: Unit and UI tests
+        run: ./gradlew --no-daemon test
+      - name: Package (unsigned)
+        run: ./gradlew --no-daemon ${{ matrix.task }}
+      - name: Upload package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: etabli-nuage-desktop-${{ matrix.format }}
+          path: desktop/build/compose/binaries/main/${{ matrix.format }}/
+          if-no-files-found: error
+      - name: Retain test reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-test-reports-${{ matrix.format }}
+          path: desktop/build/reports/tests/
