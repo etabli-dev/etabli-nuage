@@ -2,7 +2,7 @@
 
 > Check a CSV of links and keep exportable results, with optional Nextcloud storage.
 
-`iOS` `Android` · Apache-2.0 · Part of the [Établi Suite](https://github.com/etabli-dev)
+`iOS` `Android` `Desktop preview` · Apache-2.0 · Part of the [Établi Suite](https://github.com/etabli-dev)
 
 The implemented app is the link checker inherited from Établi Probe. Import a
 local CSV or retrieve one by its Nextcloud WebDAV path, choose the URL column,
@@ -16,9 +16,14 @@ paths retain the Probe name for compatibility. Not affiliated with Nextcloud Gmb
 Établi Nuage is **under active development**. There are no App Store, Google Play or F-Droid releases yet.
 
 - **Android:** a development **APK** (v0.1.0, June 2026, older source) is prepared as a draft on GitHub Releases but not published yet; build from source meanwhile (below).
+- **Desktop (Ubuntu/Debian, Windows, macOS):** **development preview** in `desktop/`, built from source. No packaged release yet; only the Linux build has been run and checked locally.
 - **App Store (iOS):** planned — not yet available.
 - **Google Play:** planned — not yet available.
 - **F-Droid:** planned — not yet available.
+
+**Platforms:** desktop first, with iOS and Android as companions. What runs where,
+how each platform is built and verified, and the next release steps are in the
+[platform roadmap](docs/platform-roadmap.md).
 
 ## First use
 
@@ -80,6 +85,19 @@ swiftc ios/App/Models.swift ios/App/IO/CsvLoader.swift \
 python3 scripts/check_http.py /tmp/nuage-core-check
 ```
 
+Desktop preview (Linux, Windows, macOS): JDK 17 or newer to start Gradle. The
+desktop app performs the HTTP status (background) check; page rendering and
+scheduled runs remain mobile-only. Open a CSV with the file dialog, by drag and
+drop or as the first command-line argument, then export the results CSV to a path
+you choose.
+
+```sh
+cd desktop
+./gradlew test        # engine, WebDAV and UI tests against loopback servers
+./gradlew run         # start the app
+./gradlew packageDeb  # or packageMsi / packageDmg on Windows / macOS
+```
+
 The tests use local HTTP/TLS fixtures, not a real Nextcloud account. See
 [the refinement record](docs/refinement-2026-10.md) for observed results and
 [the iOS submission checklist](ios/SUBMISSION.md) for outstanding device gates.
@@ -97,12 +115,19 @@ key cannot be restored with it. Logs contain the checked URLs, outcomes, timesta
 and a per-install UUID. Logs and usage profiles are local, unencrypted files and
 may be included in device backups. Upload/share happens only through your action.
 
+The desktop preview asks for the Nextcloud app password once per session and keeps
+it in memory only; it is never written to disk. Server URL, username, upload folder,
+check settings, theme and the per-install UUID are stored in a plain settings file
+in the per-user configuration folder. Results stay in memory until you export or
+upload them.
+
 ## Layout and release scope
 
 `ios/` contains SwiftUI/Foundation sources, `android/` Compose/OkHttp sources,
-and `fastlane/` store metadata. Device WebView lifecycle, accessibility, credential
-restore, actual Nextcloud interoperability and signed-store acceptance remain
-separate release gates. No unattended background service is implemented.
+`desktop/` the Compose Multiplatform desktop preview, and `fastlane/` store
+metadata. Device WebView lifecycle, accessibility, credential restore, actual
+Nextcloud interoperability and signed-store acceptance remain separate release
+gates. No unattended background service is implemented.
 
 ## License
 
