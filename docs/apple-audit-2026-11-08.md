@@ -15,3 +15,20 @@ On the final source, `cd desktop && ./gradlew --no-daemon --max-workers=2 test p
 Artifact: `desktop/build/compose/binaries/main/dmg/Etabli Nuage-1.0.0.dmg` (69,389,972 bytes). SHA-256: `fe66721aa9536e126505afb71cf83a988f00bd8e64699987fce455f913dd5534`.
 
 The package is not Developer ID signed or notarized. The test suite covers desktop UI and state behavior, but no new installed macOS interactive or live Nextcloud acceptance is claimed.
+
+## Windows CI follow-up, 2026-11-09
+
+The first exact-commit Windows workflow failed the delayed-upload regression's
+three-second request wait, then stalled until the job's 30-minute deadline.
+Linux and macOS packaging passed in that run. The regression now holds the PUT
+response behind an explicit bounded gate until the newer run completes, and
+releases/cancels it during cleanup. WebDAV request assertions are bounded;
+per-test progress and a ten-minute test-step limit preserve useful failure
+reports without consuming the entire packaging job.
+
+The updated complete desktop suite passed locally again: 59 tests, no failures,
+errors or skips (one Gradle worker). A final scoped repeat also passed after
+adding an explicit assertion that the held PUT returns success rather than the
+fallback timeout response. The original Windows failure is not treated
+as resolved until the updated Windows CI run passes. Production code and the
+previously verified DMG are unchanged by this test/CI follow-up.

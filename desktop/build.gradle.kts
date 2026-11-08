@@ -128,7 +128,7 @@ tasks.test {
     // Keep Skiko's extracted native library inside build/ instead of ~/.skiko.
     systemProperty("skiko.data.path", layout.buildDirectory.dir("skiko").get().asFile.absolutePath)
     testLogging {
-        events("failed", "skipped")
+        events("started", "passed", "failed", "skipped")
         exceptionFormat = TestExceptionFormat.FULL
     }
 }

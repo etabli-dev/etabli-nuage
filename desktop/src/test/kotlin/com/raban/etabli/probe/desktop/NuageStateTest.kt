@@ -6,11 +6,16 @@ package com.raban.etabli.probe.desktop
 import com.raban.etabli.probe.engine.CheckResult
 import com.raban.etabli.probe.engine.CsvLoader
 import com.raban.etabli.probe.net.WebDavClient
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import okhttp3.mockwebserver.Dispatcher
+import okhttp3.mockwebserver.RecordedRequest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.tls.HandshakeCertificates
@@ -24,6 +29,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.nio.file.Files
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /** The desktop workflow without the window: open, choose column, run, export, Nextcloud. */
@@ -198,8 +205,8 @@ class NuageStateTest {
                 dav.enqueue(MockResponse().setResponseCode(405)) // MKCOL: folder exists
                 dav.enqueue(MockResponse().setResponseCode(201)) // PUT
                 state.submitPassword("pw")!!.join()
-                assertEquals("MKCOL", dav.takeRequest().method)
-                val put = dav.takeRequest()
+                assertEquals("MKCOL", requireNotNull(dav.takeRequest(10, TimeUnit.SECONDS)) { "Missing MKCOL request" }.method)
+                val put = requireNotNull(dav.takeRequest(10, TimeUnit.SECONDS)) { "Missing PUT request" }
                 assertEquals("/remote.php/dav/files/me/Out/r.csv", put.path)
                 val uploaded = CsvLoader.parse(put.body.readByteArray(), hasHeader = true)
                 assertEquals(listOf("200"), uploaded.column(3))
@@ -225,17 +232,35 @@ class NuageStateTest {
                 state.startRun()!!.join()
                 state.saveAccount(dav.url("/").toString(), "me", "Out")
                 state.uploadResults("old.csv")
-                dav.enqueue(MockResponse().setResponseCode(405))
-                dav.enqueue(MockResponse().setResponseCode(201).setHeadersDelay(1, TimeUnit.SECONDS))
-                val upload = state.submitPassword("pw")!!
-                withContext(Dispatchers.IO) {
-                    assertNotNull(dav.takeRequest(3, TimeUnit.SECONDS))
-                    assertNotNull(dav.takeRequest(3, TimeUnit.SECONDS))
+                val uploadArrived = CompletableDeferred<Unit>()
+                val releaseUpload = CountDownLatch(1)
+                val responseReleased = AtomicBoolean(false)
+                dav.dispatcher = object : Dispatcher() {
+                    override fun dispatch(request: RecordedRequest): MockResponse = when (request.method) {
+                        "MKCOL" -> MockResponse().setResponseCode(405)
+                        "PUT" -> {
+                            uploadArrived.complete(Unit)
+                            responseReleased.set(releaseUpload.await(20, TimeUnit.SECONDS))
+                            MockResponse().setResponseCode(if (responseReleased.get()) 201 else 503)
+                        }
+                        else -> MockResponse().setResponseCode(400)
+                    }
                 }
-                state.startRun()!!.join()
-                upload.join()
-                assertEquals(1, state.unsavedCount)
-                assertFalse(state.requestQuit())
+                val upload = state.submitPassword("pw")!!
+                try {
+                    // Yield the test scope and hold PUT until the newer run is complete.
+                    // A fixed header delay races with slower Windows TLS/startup and CI scheduling.
+                    withTimeout(15_000) { uploadArrived.await() }
+                    withTimeout(15_000) { state.startRun()!!.join() }
+                    releaseUpload.countDown()
+                    withTimeout(15_000) { upload.join() }
+                    assertTrue("The old upload must receive a successful response", responseReleased.get())
+                    assertEquals(1, state.unsavedCount)
+                    assertFalse(state.requestQuit())
+                } finally {
+                    releaseUpload.countDown()
+                    upload.cancelAndJoin()
+                }
             }
         }
     }

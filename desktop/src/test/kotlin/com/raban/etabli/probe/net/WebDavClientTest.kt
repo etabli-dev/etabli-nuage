@@ -83,7 +83,7 @@ class WebDavClientTest {
     @Test fun downloadsAreBoundedToTheCsvLimit() = fixture { server, client ->
         server.enqueue(MockResponse().setResponseCode(200).setBody("url\nhttps://a.example\n"))
         assertEquals("url\nhttps://a.example\n", client.get("links/a.csv").toString(Charsets.UTF_8))
-        assertEquals("/nextcloud/remote.php/dav/files/a+b/links/a.csv", server.takeRequest().path)
+        assertEquals("/nextcloud/remote.php/dav/files/a+b/links/a.csv", requireNotNull(server.takeRequest(10, TimeUnit.SECONDS)) { "Expected WebDAV request" }.path)
         server.enqueue(MockResponse().setResponseCode(200).setBody("x".repeat(10 * 1024 * 1024 + 1)))
         try { client.get("big.csv"); fail("Oversized download accepted") } catch (_: IllegalArgumentException) { }
     }
@@ -92,8 +92,8 @@ class WebDavClientTest {
         server.enqueue(MockResponse().setResponseCode(201))
         server.enqueue(MockResponse().setResponseCode(201))
         client.put("logs", "result.csv", "rows".toByteArray())
-        assertEquals("MKCOL", server.takeRequest().method)
-        val upload = server.takeRequest()
+        assertEquals("MKCOL", requireNotNull(server.takeRequest(10, TimeUnit.SECONDS)) { "Expected WebDAV request" }.method)
+        val upload = requireNotNull(server.takeRequest(10, TimeUnit.SECONDS)) { "Expected WebDAV request" }
         assertEquals("PUT", upload.method)
         assertEquals("rows", upload.body.readUtf8())
         server.enqueue(MockResponse().setResponseCode(409))
@@ -107,9 +107,9 @@ class WebDavClientTest {
         server.enqueue(MockResponse().setResponseCode(201)) // MKCOL: created
         server.enqueue(MockResponse().setResponseCode(204)) // PUT: replaced
         client.put("/EtabliProbe/2026/", "r.csv", "x".toByteArray(), "text/csv; charset=utf-8")
-        assertEquals("/nextcloud/remote.php/dav/files/a+b/EtabliProbe", server.takeRequest().path)
-        assertEquals("/nextcloud/remote.php/dav/files/a+b/EtabliProbe/2026", server.takeRequest().path)
-        val put = server.takeRequest()
+        assertEquals("/nextcloud/remote.php/dav/files/a+b/EtabliProbe", requireNotNull(server.takeRequest(10, TimeUnit.SECONDS)) { "Expected WebDAV request" }.path)
+        assertEquals("/nextcloud/remote.php/dav/files/a+b/EtabliProbe/2026", requireNotNull(server.takeRequest(10, TimeUnit.SECONDS)) { "Expected WebDAV request" }.path)
+        val put = requireNotNull(server.takeRequest(10, TimeUnit.SECONDS)) { "Expected WebDAV request" }
         assertEquals("/nextcloud/remote.php/dav/files/a+b/EtabliProbe/2026/r.csv", put.path)
         assertEquals("text/csv; charset=utf-8", put.getHeader("Content-Type"))
     }

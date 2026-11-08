@@ -52,6 +52,7 @@ jobs:
             desktop/*.gradle.kts
             desktop/gradle/wrapper/gradle-wrapper.properties
       - name: Unit and UI tests
+        timeout-minutes: 10
         run: ./gradlew --no-daemon test
       - name: Package (unsigned)
         run: ./gradlew --no-daemon ${{ matrix.task }}
