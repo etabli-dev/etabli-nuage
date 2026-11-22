@@ -1,5 +1,8 @@
 # Platform roadmap
 
+> **Note (22 November 2026):** this project is now proprietary (all rights reserved). F-Droid only
+> publishes free software, so every F-Droid step below is void.
+
 Status as of 2026-11-08. This page plans Établi Nuage for Ubuntu/Debian, Windows,
 macOS, iOS and Android. It separates what exists and was verified from what is
 planned; "not verified locally (CI only)" means a build is configured but has not

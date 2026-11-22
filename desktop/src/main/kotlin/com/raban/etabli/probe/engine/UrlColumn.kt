@@ -1,5 +1,5 @@
 // Copyright 2026 R. Heller
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: LicenseRef-Proprietary
 package com.raban.etabli.probe.engine
 
 // The column choice and row numbering used by the mobile Source screens, extracted
