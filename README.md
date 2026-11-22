@@ -2,7 +2,7 @@
 
 > Check a CSV of links and keep exportable results, with optional Nextcloud storage.
 
-`iOS` `Android` `Desktop preview` · All rights reserved · Part of the [Établi Suite](https://github.com/etabli-dev)
+`iOS` `Android` `Desktop preview` · AGPL-3.0-only · Part of the [Établi Suite](https://github.com/etabli-dev)
 
 The implemented app is the link checker inherited from Établi Probe. Import a
 local CSV or retrieve one by its Nextcloud WebDAV path, choose the URL column,
@@ -13,13 +13,13 @@ paths retain the Probe name for compatibility. Not affiliated with Nextcloud Gmb
 
 ## Availability
 
-Établi Nuage is **under active development**. There are no App Store or Google Play releases yet.
+Établi Nuage is **under active development**. There are no App Store, Google Play or F-Droid releases yet.
 
 - **Android:** a development **APK** (v0.1.0, June 2026, older source) is prepared as a draft on GitHub Releases but not published yet; build from source meanwhile (below).
 - **Desktop (Ubuntu/Debian, Windows, macOS):** **development preview** in `desktop/`, built from source. No packaged release yet; only the Linux build has been run and checked locally.
 - **App Store (iOS):** planned — not yet available.
 - **Google Play:** planned — not yet available.
-- **F-Droid:** not planned (F-Droid requires a free licence).
+- **F-Droid:** planned — not yet available.
 
 **Platforms:** desktop first, with iOS and Android as companions. What runs where,
 how each platform is built and verified, and the next release steps are in the
@@ -131,6 +131,8 @@ gates. No unattended background service is implemented.
 
 ## License
 
-Proprietary, all rights reserved — see [LICENSE](LICENSE) and [NOTICE](NOTICE). Third-party components keep
-their own licences. Versions published before 22 November 2026 remain available under Apache-2.0.
+GNU Affero General Public License v3.0 only (AGPL-3.0-only) — see [LICENSE](LICENSE) and
+[NOTICE](NOTICE). Commercial licences are available from the copyright holder
+(etabli.dev@outlook.com). Third-party components keep their own licences. Versions published
+before 22 November 2026 remain available under Apache-2.0.
 Copyright 2026 R. Heller.
