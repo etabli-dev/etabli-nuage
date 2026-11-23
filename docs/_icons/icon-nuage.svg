@@ -1,20 +1,9 @@
-<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Nuage">
+  <!-- Établi Nuage icon. Coder design system: #28A745 tile, white glyph, one-line glyph ≈70% of the tile, stroke 44 @1024 (aligned to the suite icon, Nov 2026). -->
   <rect width="1024" height="1024" fill="#28A745"/>
-  <g id="glyph" fill="none" stroke="#FFFFFF" stroke-width="36"
-     stroke-linecap="round" stroke-linejoin="round">
-    <!-- Cloud outline -->
-    <path d="M 360 540
-             C 312 540, 280 506, 280 462
-             C 280 416, 320 380, 366 384
-             C 380 332, 432 296, 488 304
-             C 540 312, 580 354, 588 408
-             C 626 400, 668 422, 684 460
-             C 700 498, 680 540, 640 548
-             L 380 548
-             C 372 548, 366 545, 360 540 Z"/>
-    <!-- Up arrow -->
-    <path d="M 432 660 L 432 740 M 432 660 L 408 684 M 432 660 L 456 684"/>
-    <!-- Down arrow -->
-    <path d="M 580 740 L 580 660 M 580 740 L 556 716 M 580 740 L 604 716"/>
+  <g transform="translate(512,512) scale(1.64677) translate(-484.75,-501.50)">
+  <g stroke-width="26.719" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 420 676 L 444 700 L 468 676 M 444 700 V 548 H 380 C 372 548, 366 545, 360 540 C 312 540, 280 506, 280 462 C 280 416, 320 380, 366 384 C 380 332, 432 296, 488 304 C 540 312, 580 354, 588 408 C 626 400, 668 422, 684 460 C 700 498, 680 540, 640 548 H 540 V 430 M 516 454 L 540 430 L 564 454" fill="none" stroke="#FFFFFF"/>
+  </g>
   </g>
 </svg>
