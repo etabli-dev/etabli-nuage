@@ -2,7 +2,7 @@
 
 > Check a CSV of links and keep exportable results, with optional Nextcloud storage.
 
-`iOS` `Android` `Desktop preview` · Apache-2.0 · Part of the [Établi Suite](https://github.com/etabli-dev)
+`iOS` `Android` `Desktop preview` · AGPL-3.0-only · Part of the [Établi Suite](https://github.com/etabli-dev)
 
 The implemented app is the link checker inherited from Établi Probe. Import a
 local CSV or retrieve one by its Nextcloud WebDAV path, choose the URL column,
@@ -131,5 +131,8 @@ gates. No unattended background service is implemented.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+GNU Affero General Public License v3.0 only (AGPL-3.0-only) — see [LICENSE](LICENSE) and
+[NOTICE](NOTICE). Commercial licences are available from the copyright holder
+(etabli.dev@outlook.com). Third-party components keep their own licences. Versions published
+before 22 November 2026 remain available under Apache-2.0.
 Copyright 2026 R. Heller.

@@ -1,5 +1,5 @@
 // Copyright 2026 R. Heller
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 
 package com.raban.etabli.probe.desktop.ui
 
@@ -111,7 +111,7 @@ fun SettingsPane(state: NuageState, settingsLocation: String) {
             MonoLabel("install id · ${s.installId}", color = t.color.faint)
             MonoLabel("settings file · $settingsLocation", color = t.color.faint)
             MonoLabel("design tokens · Coder Design System ${DesignTokens.DESIGN_VERSION}", color = t.color.faint)
-            MonoLabel("Apache-2.0 · © 2026 R. Heller", color = t.color.faint)
+            MonoLabel("AGPL-3.0-only · © 2026 R. Heller", color = t.color.faint)
         }
     }
 }
