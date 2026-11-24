@@ -11,6 +11,8 @@ Contacts/CardDAV, calendar/CalDAV and a general file browser are future work;
 they are not available in this version. Existing application IDs and saved data
 paths retain the Probe name for compatibility. Not affiliated with Nextcloud GmbH.
 
+Appearance (iOS, Settings → Appearance): app language (System/Deutsch/English; the iOS app is fully translated into German), System/Light/Dark and accent colour; default Hugo Coder palette.
+
 ## Availability
 
 Établi Nuage is **under active development**. There are no App Store, Google Play or F-Droid releases yet.
@@ -83,6 +85,8 @@ swiftc ios/App/Models.swift ios/App/IO/CsvLoader.swift \
   ios/App/Engine/UsageProfile.swift ios/App/Net/WebDavClient.swift \
   scripts/check_core.swift -o /tmp/nuage-core-check
 python3 scripts/check_http.py /tmp/nuage-core-check
+swiftc ios/App/AppearanceModel.swift scripts/check_appearance.swift -o /tmp/nuage-appearance-check
+/tmp/nuage-appearance-check
 ```
 
 Desktop preview (Linux, Windows, macOS): JDK 17 or newer to start Gradle. The

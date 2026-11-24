@@ -87,9 +87,9 @@ public enum MaskMode: String, CaseIterable, Identifiable, Sendable {
     public var id: String { rawValue }
     public var label: String {
         switch self {
-        case .none:     return "off"
-        case .worktime: return "worktime only"
-        case .offhours: return "off-hours only"
+        case .none:     return String(localized: "off")
+        case .worktime: return String(localized: "worktime only")
+        case .offhours: return String(localized: "off-hours only")
         }
     }
 }
@@ -100,7 +100,7 @@ public enum UsageProfileParser {
 
     /// Parse a TXT log and aggregate to a UsageProfile.
     public static func parse(_ text: String, sourceName: String? = nil) throws -> UsageProfile {
-        guard text.utf8.count <= maxCSVBytes else { throw CsvError.invalid("Usage log exceeds 10 MiB") }
+        guard text.utf8.count <= maxCSVBytes else { throw CsvError.invalid(String(localized: "Usage log exceeds 10 MiB")) }
         let lines = text.split(whereSeparator: { $0 == "\n" || $0 == "\r" })
         var records: [(date: Date, key: String, event: Event)] = []
         var skipped = 0
@@ -108,7 +108,7 @@ public enum UsageProfileParser {
             let line = String(raw).trimmingCharacters(in: .whitespaces)
             if line.isEmpty || line.hasPrefix("#") { continue }
             guard let r = parseLine(line) else { skipped += 1; continue }
-            guard records.count < 100_000 else { throw CsvError.invalid("Usage log has too many events") }
+            guard records.count < 100_000 else { throw CsvError.invalid(String(localized: "Usage log has too many events")) }
             records.append(r)
         }
         records.sort { $0.date < $1.date }
@@ -139,11 +139,11 @@ public enum UsageProfileParser {
         var expanded = 0
         for (start, end) in sessions {
             if end <= start { continue }
-            guard end.timeIntervalSince(start) <= 31 * 24 * 60 * 60 else { throw CsvError.invalid("An activity interval exceeds 31 days; check the source timestamps") }
+            guard end.timeIntervalSince(start) <= 31 * 24 * 60 * 60 else { throw CsvError.invalid(String(localized: "An activity interval exceeds 31 days; check the source timestamps")) }
             var cur = Date(timeIntervalSince1970: floor(start.timeIntervalSince1970 / 60) * 60)
             while cur < end {
                 expanded += 1
-                guard expanded <= 1_000_000 else { throw CsvError.invalid("Usage log expands to more than one million minutes") }
+                guard expanded <= 1_000_000 else { throw CsvError.invalid(String(localized: "Usage log expands to more than one million minutes")) }
                 let day = cal.startOfDay(for: cur)
                 let m = cal.component(.hour, from: cur) * 60 + cal.component(.minute, from: cur)
                 perDayActive[day, default: []].insert(m)
@@ -278,7 +278,7 @@ public enum UsageProfileStore {
             .appendingPathComponent("probe_profile.json")
     }
     public static func save(_ p: UsageProfile) throws {
-        guard p.isValid else { throw CsvError.invalid("Invalid probability profile") }
+        guard p.isValid else { throw CsvError.invalid(String(localized: "Invalid probability profile")) }
         try JSONEncoder().encode(p).write(to: url, options: .atomic)
     }
     public static func load() -> UsageProfile? {

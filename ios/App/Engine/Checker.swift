@@ -55,7 +55,7 @@ private final class BoundedTransfer: NSObject, URLSessionDataDelegate, @unchecke
         }
         if headersOnly { completionHandler(.cancel); finish(.success((Data(), http))); return }
         if response.expectedContentLength > limit {
-            completionHandler(.cancel); finish(.failure(CsvError.invalid("Response exceeds allowed size"))); return
+            completionHandler(.cancel); finish(.failure(CsvError.invalid(String(localized: "Response exceeds allowed size")))); return
         }
         lock.lock(); self.response = http; lock.unlock()
         completionHandler(.allow)
@@ -64,7 +64,7 @@ private final class BoundedTransfer: NSObject, URLSessionDataDelegate, @unchecke
         lock.lock()
         guard completed == nil else { lock.unlock(); return }
         if data.count > limit - body.count {
-            lock.unlock(); finish(.failure(CsvError.invalid("Response exceeds allowed size"))); return
+            lock.unlock(); finish(.failure(CsvError.invalid(String(localized: "Response exceeds allowed size")))); return
         }
         body.append(data); lock.unlock()
     }

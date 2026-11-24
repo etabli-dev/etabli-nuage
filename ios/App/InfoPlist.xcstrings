@@ -1,0 +1,22 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSLocalNetworkUsageDescription" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbindet mit Linkzielen und dem gewählten Nextcloud-Server im lokalen Netzwerk."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to link targets and the Nextcloud server you choose on your local network."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

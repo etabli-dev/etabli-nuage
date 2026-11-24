@@ -87,6 +87,7 @@
 			knownRegions = (
 				en,
 				Base,
+				de,
 			);
 			mainGroup = SF0000000000000000000000B0;
 			minimizedProjectReferenceProxies = 1;
@@ -207,7 +208,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.raban.etabli.probe;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.10;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -239,7 +240,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.raban.etabli.probe;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.10;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;

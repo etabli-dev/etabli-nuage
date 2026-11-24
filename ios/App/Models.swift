@@ -37,7 +37,8 @@ public struct CheckResult: Hashable, Sendable, Identifiable {
         "duration_ms","timestamp_local","timestamp_utc","install_id",
     ]
 
-    private static let isoFormatter: ISO8601DateFormatter = {
+    // ISO8601DateFormatter is thread-safe and not mutated after this initialiser.
+    nonisolated(unsafe) private static let isoFormatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return f
@@ -64,13 +65,19 @@ public struct CheckResult: Hashable, Sendable, Identifiable {
 public enum RunMode: String, CaseIterable, Identifiable, Sendable {
     case foreground, background, scheduled
     public var id: String { rawValue }
-    public var label: String { rawValue }
+    public var label: String {
+        switch self {
+        case .foreground: return String(localized: "foreground")
+        case .background: return String(localized: "background")
+        case .scheduled: return String(localized: "scheduled")
+        }
+    }
 }
 
 public enum LogRotation: String, CaseIterable, Identifiable, Sendable {
     case append, perRun
     public var id: String { rawValue }
-    public var label: String { self == .append ? "append" : "per run" }
+    public var label: String { self == .append ? String(localized: "append") : String(localized: "per run") }
 }
 
 public struct WebDavCreds: Equatable, Sendable, Codable {

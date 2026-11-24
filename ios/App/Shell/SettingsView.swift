@@ -5,7 +5,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppState.self) private var state
-    @AppStorage(ThemePreference.userDefaultsKey) private var themeRaw: String = ThemePreference.system.rawValue
     @AppStorage("cfg.mode") private var modeRaw: String = RunMode.foreground.rawValue
     @AppStorage("cfg.delaySec") private var delaySec: Double = 1.0
     @AppStorage("cfg.timeoutSec") private var timeoutSec: Double = 15.0
@@ -27,7 +26,7 @@ struct SettingsView: View {
     @State private var profileTone: StatusLabel.Tone = .info
     @State private var importing: Bool = false
 
-    private var modeBlurb: String {
+    private var modeBlurb: LocalizedStringKey {
         switch RunMode(rawValue: modeRaw) ?? .foreground {
         case .foreground: return "each URL renders in a real WKWebView so you can watch it load."
         case .background: return "each URL is probed with URLSession (HTTP GET, follows redirects)."
@@ -43,7 +42,7 @@ struct SettingsView: View {
                 Card(title: "check mode", systemImage: "arrow.left.arrow.right") {
                     HStack {
                         ForEach(RunMode.allCases) { m in
-                            FilterChip(label: m.label, selected: modeRaw == m.rawValue) {
+                            FilterChip(label: m.title, selected: modeRaw == m.rawValue) {
                                 modeRaw = m.rawValue
                             }
                         }
@@ -74,7 +73,7 @@ struct SettingsView: View {
                                       enabled: !importing) { importing = true }
                         PrimaryButton("Clear", systemImage: "xmark.circle") {
                             UsageProfileStore.clear(); profile = nil
-                            profileStatus = "Profile cleared."; profileTone = .info
+                            profileStatus = String(localized: "Profile cleared."); profileTone = .info
                         }
                     }
                     if let profileStatus {
@@ -84,13 +83,12 @@ struct SettingsView: View {
 
                 Card(title: "access mask", systemImage: "calendar.badge.clock") {
                     MonoLabel(
-                        "Multiplies the profile probability by 0 outside the chosen window. " +
-                        "Worktime = Mon-Fri 08:00..18:00. Off-hours = everything else.",
+                        "Multiplies the profile probability by 0 outside the chosen window. Worktime = Mon-Fri 08:00..18:00. Off-hours = everything else.",
                         color: Theme.Color.faint,
                     )
                     HStack {
                         ForEach(MaskMode.allCases) { m in
-                            FilterChip(label: m.label, selected: maskRaw == m.rawValue) {
+                            FilterChip(label: m.title, selected: maskRaw == m.rawValue) {
                                 maskRaw = m.rawValue
                             }
                         }
@@ -103,13 +101,13 @@ struct SettingsView: View {
                         Spacer()
                         MonoLabel(String(format: "%.1f s", delaySec))
                     }
-                    Slider(value: $delaySec, in: 0.1...10, step: 0.1).tint(Theme.Color.accent)
+                    Slider(value: $delaySec, in: 0.1...10, step: 0.1)
                     HStack {
                         MonoLabel("timeout")
                         Spacer()
                         MonoLabel("\(Int(timeoutSec)) s")
                     }
-                    Slider(value: $timeoutSec, in: 3...120, step: 1).tint(Theme.Color.accent)
+                    Slider(value: $timeoutSec, in: 3...120, step: 1)
                 }
 
                 Card(title: "Nextcloud (CSV fetch + log upload)", systemImage: "cloud") {
@@ -131,22 +129,14 @@ struct SettingsView: View {
                 Card(title: "log", systemImage: "doc.text") {
                     HStack {
                         ForEach(LogRotation.allCases) { r in
-                            FilterChip(label: r.label, selected: rotationRaw == r.rawValue) {
+                            FilterChip(label: r.title, selected: rotationRaw == r.rawValue) {
                                 rotationRaw = r.rawValue
                             }
                         }
                     }
                 }
 
-                Card(title: "appearance", systemImage: "paintbrush") {
-                    HStack {
-                        ForEach(ThemePreference.allCases) { p in
-                            FilterChip(label: p.label.lowercased(), selected: themeRaw == p.rawValue) {
-                                themeRaw = p.rawValue
-                            }
-                        }
-                    }
-                }
+                AppearanceCard()
 
                 Card(title: "about", systemImage: "info.circle") {
                     Text("Établi Probe — Coder-suite link-checker.").font(Theme.Font.body)
@@ -154,7 +144,7 @@ struct SettingsView: View {
                     MonoLabel(state.installID, color: Theme.Color.faint)
                 }
             }
-            .padding(Theme.Space.lg)
+            .padding(Theme.Space.lg).readableColumn()
         }
         .background(Theme.Color.paper.ignoresSafeArea())
         .onAppear {
@@ -181,14 +171,14 @@ struct SettingsView: View {
             try UsageProfileStore.save(parsed)
             profile = parsed
             if parsed.totalDays == 0 {
-                profileStatus = "⚠ no valid open/close events recognised (\(parsed.skippedLines) lines skipped)."
+                profileStatus = String(localized: "⚠ no valid open/close events recognised (\(parsed.skippedLines) lines skipped).")
                 profileTone = .danger
             } else {
-                profileStatus = "Loaded \(parsed.totalRecords) events across \(parsed.totalDays) days."
-                profileTone = .accent
+                profileStatus = String(localized: "Loaded \(parsed.totalRecords) events across \(parsed.totalDays) days.")
+                profileTone = .success
             }
         } catch {
-            profileStatus = "⚠ \(error.localizedDescription)"; profileTone = .danger
+            profileStatus = String(localized: "⚠ \(error.localizedDescription)"); profileTone = .danger
         }
     }
 
@@ -202,7 +192,7 @@ struct SettingsView: View {
             pw = passwordField
         }
         guard !baseURL.isEmpty, !username.isEmpty, !pw.isEmpty else {
-            status = "⚠ Fill in all three fields."; statusTone = .danger; return
+            status = String(localized: "⚠ Fill in all three fields."); statusTone = .danger; return
         }
         let creds = WebDavCreds(baseURL: baseURL.trimmingCharacters(in: .whitespaces),
                                 username: username.trimmingCharacters(in: .whitespaces),
@@ -213,10 +203,10 @@ struct SettingsView: View {
             try Keychain.set(String(decoding: saved, as: UTF8.self), account: "nc.credentials.v2")
             passwordField = ""
             savedIdentity = creds
-            status = "OK — \(count) items at root. Credentials stored in Keychain."
-            statusTone = .accent
+            status = String(localized: "OK — \(count) items at root. Credentials stored in Keychain.")
+            statusTone = .success
         } catch {
-            status = "⚠ \(error.localizedDescription)"; statusTone = .danger
+            status = String(localized: "⚠ \(error.localizedDescription)"); statusTone = .danger
         }
     }
 
@@ -224,16 +214,16 @@ struct SettingsView: View {
         do {
             for account in ["nc.password", "nc.baseURL", "nc.username", "nc.credentials.v2"] { try Keychain.delete(account: account) }
             passwordField = ""; savedIdentity = nil
-            status = "Disconnected — Keychain entries removed."; statusTone = .info
-        } catch { status = "Could not remove credentials: \(error.localizedDescription)"; statusTone = .danger }
+            status = String(localized: "Disconnected — Keychain entries removed."); statusTone = .info
+        } catch { status = String(localized: "Could not remove credentials: \(error.localizedDescription)"); statusTone = .danger }
     }
 }
 
 private struct LabeledField: View {
-    let label: String
+    let label: LocalizedStringKey
     @Binding var text: String
     var secure: Bool = false
-    init(_ label: String, text: Binding<String>, secure: Bool = false) {
+    init(_ label: LocalizedStringKey, text: Binding<String>, secure: Bool = false) {
         self.label = label; self._text = text; self.secure = secure
     }
     var body: some View {
@@ -255,21 +245,49 @@ private struct LabeledField: View {
 }
 
 private struct FilterChip: View {
-    let label: String; let selected: Bool; let action: () -> Void
+    @Environment(\.themeAccent) private var accent
+    @Environment(\.themeSelectionTint) private var selectionTint
+    let label: LocalizedStringKey; let selected: Bool; let action: () -> Void
     var body: some View {
         Button(action: action) {
             Text(label)
                 .font(Theme.Font.caption.weight(.semibold))
-                .foregroundStyle(selected ? Theme.Color.accent : Theme.Color.faint)
+                .foregroundStyle(selected ? accent : Theme.Color.faint)
                 .padding(.horizontal, Theme.Space.md).padding(.vertical, Theme.Space.sm)
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                        .fill(selected ? Theme.Color.accentMuted : Theme.Color.surface)
+                        .fill(selected ? selectionTint.opacity(AccentChoice.selectionOpacity) : Theme.Color.surface)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                        .stroke(selected ? Theme.Color.accent : Theme.Color.hairline)
+                        .stroke(selected ? accent : Theme.Color.hairline)
                 )
         }.buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
+}
+
+// Chip titles as localized keys, so the in-app language applies at once.
+extension RunMode {
+    var title: LocalizedStringKey {
+        switch self {
+        case .foreground: "foreground"
+        case .background: "background"
+        case .scheduled: "scheduled"
+        }
+    }
+}
+
+extension MaskMode {
+    var title: LocalizedStringKey {
+        switch self {
+        case .none: "off"
+        case .worktime: "worktime only"
+        case .offhours: "off-hours only"
+        }
+    }
+}
+
+extension LogRotation {
+    var title: LocalizedStringKey { self == .append ? "append" : "per run" }
 }

@@ -22,10 +22,10 @@ public enum WebDavError: LocalizedError {
     case notConfigured, http(Int, String?), transport(String), decoding(String)
     public var errorDescription: String? {
         switch self {
-        case .notConfigured:        return "Nextcloud credentials not set."
-        case .http(let s, _):       return "Server returned HTTP \(s)."
-        case .transport(let m):     return "Network error: \(m)."
-        case .decoding(let m):      return "Couldn't parse response: \(m)."
+        case .notConfigured:        return String(localized: "Nextcloud credentials not set.")
+        case .http(let s, _):       return String(localized: "Server returned HTTP \(s).")
+        case .transport(let m):     return String(localized: "Network error: \(sentence(m))")
+        case .decoding(let m):      return String(localized: "Couldn't parse response: \(sentence(m))")
         }
     }
 }
@@ -140,7 +140,7 @@ public actor WebDavClient {
 
     // MARK: - PROPFIND parsing
     private func parseMultiStatus(_ data: Data, selfPath: String) throws -> [DavEntry] {
-        guard !(String(data: data, encoding: .utf8) ?? "").uppercased().contains("<!DOCTYPE") else { throw WebDavError.decoding("DTD declarations are not accepted") }
+        guard !(String(data: data, encoding: .utf8) ?? "").uppercased().contains("<!DOCTYPE") else { throw WebDavError.decoding(String(localized: "DTD declarations are not accepted")) }
         let parser = DavParser(selfPath: selfPath)
         let x = XMLParser(data: data)
         x.delegate = parser
@@ -223,4 +223,9 @@ private final class DavParser: NSObject, XMLParserDelegate {
         default: break
         }
     }
+}
+
+/// A system message as one sentence: adds a final period only when the message has none.
+private func sentence(_ message: String) -> String {
+    message.hasSuffix(".") ? message : message + "."
 }

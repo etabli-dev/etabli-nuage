@@ -26,11 +26,11 @@ public enum CsvLoader {
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
         let data = try handle.read(upToCount: maxCSVBytes + 1) ?? Data()
-        guard data.count <= maxCSVBytes else { throw CsvError.invalid("CSV exceeds 10 MiB") }
+        guard data.count <= maxCSVBytes else { throw CsvError.invalid(String(localized: "CSV exceeds 10 MiB")) }
         return data
     }
     public static func parse(_ data: Data, hasHeader: Bool? = nil) throws -> CsvPreview {
-        guard data.count <= maxCSVBytes else { throw CsvError.invalid("CSV exceeds 10 MiB") }
+        guard data.count <= maxCSVBytes else { throw CsvError.invalid(String(localized: "CSV exceeds 10 MiB")) }
         var text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) ?? ""
         if text.hasPrefix("\u{FEFF}") { text.removeFirst() }
         let chars = Array(text.unicodeScalars)
@@ -51,12 +51,12 @@ public enum CsvLoader {
         var rows: [[String]] = []; var row: [String] = []; var field = ""
         var closed = false; var cells = 0; quoted = false; i = 0
         func endField() throws {
-            guard row.count < 1024 && cells < 1_000_000 else { throw CsvError.invalid("CSV has too many columns or cells") }
+            guard row.count < 1024 && cells < 1_000_000 else { throw CsvError.invalid(String(localized: "CSV has too many columns or cells")) }
             row.append(field); field = ""; closed = false; cells += 1
         }
         func endRow() throws {
             try endField()
-            guard rows.count < 100_000 else { throw CsvError.invalid("CSV has too many records") }
+            guard rows.count < 100_000 else { throw CsvError.invalid(String(localized: "CSV has too many records")) }
             rows.append(row); row = []
         }
         while i < chars.count {
@@ -72,15 +72,15 @@ public enum CsvLoader {
                 if c == "\r" && i + 1 < chars.count && chars[i + 1] == "\n" { i += 1 }
             } else if c == "\"" && field.isEmpty && !closed { quoted = true }
             else {
-                guard c != "\"" && !closed else { throw CsvError.invalid("Unexpected quote or text after a quoted field") }
+                guard c != "\"" && !closed else { throw CsvError.invalid(String(localized: "Unexpected quote or text after a quoted field")) }
                 field.unicodeScalars.append(c)
             }
             i += 1
         }
-        guard !quoted else { throw CsvError.invalid("Unclosed quoted field") }
+        guard !quoted else { throw CsvError.invalid(String(localized: "Unclosed quoted field")) }
         if !field.isEmpty || !row.isEmpty || closed { try endRow() }
         let width = rows.map(\.count).max() ?? 0
-        guard width * rows.count <= 1_000_000 else { throw CsvError.invalid("CSV is too wide to preview") }
+        guard width * rows.count <= 1_000_000 else { throw CsvError.invalid(String(localized: "CSV is too wide to preview")) }
         let padded = rows.map { $0 + Array(repeating: "", count: width - $0.count) }
         let known: Set<String> = ["url", "urls", "link", "links", "website", "webseite", "webadresse", "address"]
         let inferred = rows.first?.contains { known.contains($0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) } ?? false

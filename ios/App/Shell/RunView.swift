@@ -46,7 +46,7 @@ struct RunView: View {
                 case .scheduled:  scheduledBody
                 }
             }
-            .padding(Theme.Space.lg)
+            .padding(Theme.Space.lg).readableColumn()
         }
         .background(Theme.Color.paper.ignoresSafeArea())
         .onAppear { profile = UsageProfileStore.load() }
@@ -60,7 +60,7 @@ struct RunView: View {
                 Card(title: "progress", systemImage: "play.fill") {
                     MonoLabel("\(state.done) of \(state.total)")
                     HStack {
-                        StatusLabel("pass \(state.passCount)", tone: .accent)
+                        StatusLabel("pass \(state.passCount)", tone: .success)
                         StatusLabel("fail \(state.failCount)", tone: state.failCount > 0 ? .danger : .info)
                     }
                     if let currentMessage {
@@ -116,7 +116,7 @@ struct RunView: View {
             for (i, entry) in entries.enumerated() {
                 while state.paused && state.running { try await Task.sleep(nanoseconds: 200_000_000) }
                 if !state.running { break }
-                currentMessage = "opening \(entry.normalized ?? entry.raw)"
+                currentMessage = String(localized: "opening \(entry.normalized ?? entry.raw)")
 
                 let result: CheckResult
                 if !entry.valid {
@@ -144,7 +144,7 @@ struct RunView: View {
                 }
             }
             } catch is CancellationError { }
-            catch { runError = "Run stopped: \(error.localizedDescription). Completed rows remain in the log." }
+            catch { runError = String(localized: "Run stopped: \(error.localizedDescription). Completed rows remain in the log.") }
         }
     }
 
@@ -158,17 +158,13 @@ struct RunView: View {
         VStack(alignment: .leading, spacing: Theme.Space.lg) {
             Card(title: "OS budget — read this", systemImage: "info.circle") {
                 MonoLabel(
-                    "Background mode performs sequential HTTP checks while this screen is active. " +
-                    "Leaving the screen stops the run. Completed CSV rows are retained; automatic queue resume is not implemented.",
+                    "Background mode performs sequential HTTP checks while this screen is active. Leaving the screen stops the run. Completed CSV rows are retained; automatic queue resume is not implemented.",
                     color: Theme.Color.faint
                 )
             }
             Card(title: "session-bound background", systemImage: "clock.arrow.circlepath") {
                 MonoLabel(
-                    "This PoC runs the background probes inside the active session " +
-                    "(no BGTaskScheduler identifier registered yet — see SUBMISSION.md). " +
-                    "Foreground is the recommended mode for any list you actually want " +
-                    "to see finish during a single sitting.",
+                    "This PoC runs the background probes inside the active session (no BGTaskScheduler identifier registered yet — see SUBMISSION.md). Foreground is the recommended mode for any list you actually want to see finish during a single sitting.",
                     color: Theme.Color.faint
                 )
             }
@@ -196,9 +192,7 @@ struct RunView: View {
         VStack(alignment: .leading, spacing: Theme.Space.lg) {
             Card(title: "usage-profile schedule", systemImage: "chart.bar.xaxis") {
                 MonoLabel(
-                    "Every minute we look up p = profile[minute-of-day], apply " +
-                    "the active mask, and roll Bernoulli(p). On heads, the next " +
-                    "URL is opened via the WebView probe.",
+                    "Every minute we look up p = profile[minute-of-day], apply the active mask, and roll Bernoulli(p). On heads, the next URL is opened via the WebView probe.",
                     color: Theme.Color.faint
                 )
                 if let profile, !profile.isEmpty {
@@ -209,10 +203,10 @@ struct RunView: View {
                 } else {
                     StatusLabel("⚠ no profile loaded — import a TXT in Settings.", tone: .warn)
                 }
-                MonoLabel("mask: \(MaskMode(rawValue: maskRaw)?.label ?? "off")",
+                MonoLabel("mask: \(MaskMode(rawValue: maskRaw)?.label ?? MaskMode.none.label)",
                           color: Theme.Color.faint)
                 if let p = lastProbability {
-                    StatusLabel(String(format: "last p(minute %d) = %.3f", lastTickMinute, p),
+                    StatusLabel("last p(minute \(lastTickMinute)) = \(String(format: "%.3f", p))",
                                 tone: p > 0 ? .accent : .info)
                 }
             }
@@ -220,7 +214,7 @@ struct RunView: View {
                 Card(title: "progress", systemImage: "play.fill") {
                     MonoLabel("\(state.done) of \(state.total) opened")
                     HStack {
-                        StatusLabel("pass \(state.passCount)", tone: .accent)
+                        StatusLabel("pass \(state.passCount)", tone: .success)
                         StatusLabel("fail \(state.failCount)",
                                     tone: state.failCount > 0 ? .danger : .info)
                     }
@@ -260,7 +254,7 @@ struct RunView: View {
         let entries = state.prepared.filter(\.valid)
         guard !entries.isEmpty else { return }
         guard let profile, !profile.isEmpty else {
-            currentMessage = "Import a usage-profile TXT in Settings first."
+            currentMessage = String(localized: "Import a usage-profile TXT in Settings first.")
             return
         }
         let installID = state.installID
@@ -295,9 +289,10 @@ struct RunView: View {
 
                 lastTickMinute = minuteOfDay
                 lastProbability = p
-                currentMessage = String(format: "minute %@  p=%.3f  %@",
-                                        UsageProfile.hhmm(minuteOfDay), p,
-                                        open ? "→ opening" : "skipped this minute")
+                let probability = String(format: "%.3f", p)
+                currentMessage = open
+                    ? String(localized: "minute \(UsageProfile.hhmm(minuteOfDay))  p=\(probability)  → opening")
+                    : String(localized: "minute \(UsageProfile.hhmm(minuteOfDay))  p=\(probability)  skipped this minute")
 
                 if open {
                     let entry = queue.removeFirst()
@@ -325,7 +320,7 @@ struct RunView: View {
                 try await Task.sleep(nanoseconds: nano)
             }
             } catch is CancellationError { }
-            catch { runError = "Run stopped: \(error.localizedDescription). Completed rows remain in the log." }
+            catch { runError = String(localized: "Run stopped: \(error.localizedDescription). Completed rows remain in the log.") }
         }
     }
 
@@ -355,7 +350,7 @@ struct RunView: View {
                     if i + 1 < entries.count { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
                 }
             } catch is CancellationError { }
-            catch { runError = "Run stopped: \(error.localizedDescription). Completed rows remain in the log." }
+            catch { runError = String(localized: "Run stopped: \(error.localizedDescription). Completed rows remain in the log.") }
         }
     }
 }
@@ -429,14 +424,17 @@ private final class NavDelegate: NSObject, WKNavigationDelegate {
         guard navigation === self.navigation else { return }
         report("LOAD_ERROR: \(error.localizedDescription)", nil)
     }
-    func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+    // The async forms match WebKit's main-actor handler types in every language mode; the closure forms with plain
+    // handler types no longer satisfy the requirements in Swift 6 and would silently not be called.
+    func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse) async -> WKNavigationResponsePolicy {
         if response.isForMainFrame, let http = response.response as? HTTPURLResponse, http.statusCode >= 400 {
             report("HTTP_ERROR: \(http.statusCode)", http.url?.absoluteString)
-            decisionHandler(.cancel)
-        } else { decisionHandler(.allow) }
+            return .cancel
+        }
+        return .allow
     }
-    func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        decisionHandler(["http", "https"].contains(action.request.url?.scheme?.lowercased() ?? "") ? .allow : .cancel)
+    func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
+        ["http", "https"].contains(action.request.url?.scheme?.lowercased() ?? "") ? .allow : .cancel
     }
 }
 

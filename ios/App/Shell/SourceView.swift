@@ -50,7 +50,7 @@ struct SourceView: View {
                         StatusLabel(status, tone: statusTone)
                     }
                 }
-                .padding(Theme.Space.lg)
+                .padding(Theme.Space.lg).readableColumn()
             }
             .background(Theme.Color.paper.ignoresSafeArea())
             .navigationBarHidden(true)
@@ -81,8 +81,8 @@ struct SourceView: View {
         }
         state.prepared = entries
         let valid = entries.filter(\.valid).count
-        status = "\(valid) valid of \(entries.count) prepared. Switching to Run."
-        statusTone = .accent
+        status = String(localized: "\(valid) valid of \(entries.count) prepared. Switching to Run.")
+        statusTone = .success
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { onPrepared() }
     }
 
@@ -96,7 +96,7 @@ struct SourceView: View {
             preview = try await Task.detached { try CsvLoader.parse(CsvLoader.read(url)) }.value
         } catch {
             await MainActor.run {
-                status = "⚠ \(error.localizedDescription)"
+                status = String(localized: "⚠ \(error.localizedDescription)")
                 statusTone = .danger
             }
         }
@@ -111,7 +111,7 @@ struct SourceView: View {
             preview = try await Task.detached { try CsvLoader.parse(data) }.value
         } catch {
             await MainActor.run {
-                status = "⚠ \(error.localizedDescription)"
+                status = String(localized: "⚠ \(error.localizedDescription)")
                 statusTone = .danger
             }
         }
@@ -129,7 +129,7 @@ private struct ColumnMapCard: View {
     var body: some View {
         Card(title: "pick the URL column", systemImage: "tablecells") {
             VStack(alignment: .leading, spacing: Theme.Space.sm) {
-                Toggle("First record contains column names", isOn: Binding(get: { preview.hasHeader }, set: onHeaderChange))
+                Toggle("First record contains column names", isOn: Binding(get: { preview.hasHeader }, set: { onHeaderChange($0) }))
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Theme.Space.sm) {
                         ForEach(Array(preview.headers.enumerated()), id: \.offset) { idx, h in
@@ -216,23 +216,26 @@ private struct DavFetchSheet: View {
 // MARK: - Chip
 
 private struct ChipButton: View {
+    @Environment(\.themeAccent) private var accent
+    @Environment(\.themeSelectionTint) private var selectionTint
     let label: String; let selected: Bool; let action: () -> Void
     var body: some View {
         Button(action: action) {
             Text(label)
                 .font(Theme.Font.caption.weight(.semibold))
-                .foregroundStyle(selected ? Theme.Color.accent : Theme.Color.faint)
+                .foregroundStyle(selected ? accent : Theme.Color.faint)
                 .padding(.horizontal, Theme.Space.md)
                 .padding(.vertical, Theme.Space.sm)
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                        .fill(selected ? Theme.Color.accentMuted : Theme.Color.surface)
+                        .fill(selected ? selectionTint.opacity(AccentChoice.selectionOpacity) : Theme.Color.surface)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                        .stroke(selected ? Theme.Color.accent : Theme.Color.hairline)
+                        .stroke(selected ? accent : Theme.Color.hairline)
                 )
         }.buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 

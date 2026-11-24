@@ -90,6 +90,10 @@ jobs:
           scripts/check_core.swift -o /tmp/nuage-core-check
       - name: Exercise CSV, profiles, logs and HTTP failures
         run: python3 scripts/check_http.py /tmp/nuage-core-check
+      - name: Check appearance model
+        run: |
+          swiftc ios/App/AppearanceModel.swift scripts/check_appearance.swift -o /tmp/nuage-appearance-check
+          /tmp/nuage-appearance-check
       - name: Build unsigned iOS simulator application
         run: xcodebuild -project ios/EtabliProbe.xcodeproj -target EtabliProbe -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build
       - name: Build unsigned iOS device Release app

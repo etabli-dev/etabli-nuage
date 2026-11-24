@@ -25,6 +25,5 @@ struct RootView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape") }
                 .tag(3)
         }
-        .tint(Theme.Color.accent)
     }
 }

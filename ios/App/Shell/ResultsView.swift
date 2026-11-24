@@ -8,6 +8,13 @@ struct ResultsView: View {
     enum Filter: String, CaseIterable, Identifiable {
         case all, pass, fail
         var id: String { rawValue }
+        var title: LocalizedStringKey {
+            switch self {
+            case .all: "all"
+            case .pass: "pass"
+            case .fail: "fail"
+            }
+        }
     }
     @State private var filter: Filter = .all
     @State private var status: String?
@@ -33,14 +40,14 @@ struct ResultsView: View {
                 Card(title: "current run totals", systemImage: "chart.bar") {
                     HStack(spacing: Theme.Space.xl) {
                         statTile("total", "\(allResults.count)", color: Theme.Color.ink)
-                        statTile("pass",  "\(allResults.filter(\.pass).count)", color: Theme.Color.accent)
+                        statTile("pass",  "\(allResults.filter(\.pass).count)", color: Theme.Color.success)
                         statTile("fail",  "\(allResults.filter { !$0.pass }.count)", color: Theme.Color.danger)
                     }
                 }
 
                 HStack {
                     ForEach(Filter.allCases) { f in
-                        FilterChip(label: f.rawValue, selected: filter == f) { filter = f }
+                        FilterChip(label: f.title, selected: filter == f) { filter = f }
                     }
                 }
 
@@ -81,7 +88,7 @@ struct ResultsView: View {
 
                 if let status { StatusLabel(status, tone: statusTone) }
             }
-            .padding(Theme.Space.lg)
+            .padding(Theme.Space.lg).readableColumn()
         }
         .background(Theme.Color.paper.ignoresSafeArea())
         .task {
@@ -92,14 +99,14 @@ struct ResultsView: View {
                     .sorted { $0.lastPathComponent > $1.lastPathComponent }
                 selectedFile = state.logger?.currentURL ?? savedFiles.first
             } catch let error as CocoaError where error.code == .fileReadNoSuchFile { }
-            catch { status = "Cannot list saved logs: \(error.localizedDescription)"; statusTone = .danger }
+            catch { status = String(localized: "Cannot list saved logs: \(error.localizedDescription)"); statusTone = .danger }
         }
         .sheet(item: $sharing) { item in
             ActivityShareView(item: item)
         }
     }
 
-    private func statTile(_ label: String, _ value: String, color: Color) -> some View {
+    private func statTile(_ label: LocalizedStringKey, _ value: String, color: Color) -> some View {
         VStack {
             Text(value).font(Theme.Font.display).foregroundStyle(color)
             MonoLabel(label, color: Theme.Color.faint)
@@ -114,7 +121,7 @@ struct ResultsView: View {
     private func uploadToNextcloud() async {
         guard let url = selectedFile,
               let c = readCreds() else {
-            status = "⚠ Set Nextcloud credentials first."; statusTone = .danger; return
+            status = String(localized: "⚠ Set Nextcloud credentials first."); statusTone = .danger; return
         }
         do {
             let data = try CsvLoader.read(url)
@@ -123,9 +130,9 @@ struct ResultsView: View {
             let client = WebDavClient(c)
             try await client.put(directory: dir, file: name, data: data,
                                  contentType: "text/csv; charset=utf-8")
-            status = "Uploaded to \(dir)/\(name)"; statusTone = .accent
+            status = String(localized: "Uploaded to \(dir)/\(name)"); statusTone = .success
         } catch {
-            status = "⚠ \(error.localizedDescription)"; statusTone = .danger
+            status = String(localized: "⚠ \(error.localizedDescription)"); statusTone = .danger
         }
     }
 }
@@ -135,7 +142,7 @@ private struct ResultRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
-                StatusLabel(r.result, tone: r.pass ? .accent : .danger)
+                StatusLabel(r.result, tone: r.pass ? .success : .danger)
                 MonoLabel("#\(r.rowIndex)", color: Theme.Color.faint)
                 Spacer()
                 MonoLabel("\(r.durationMs.map(String.init) ?? "—") ms", color: Theme.Color.faint)
@@ -153,22 +160,25 @@ private struct ResultRow: View {
 }
 
 private struct FilterChip: View {
-    let label: String; let selected: Bool; let action: () -> Void
+    @Environment(\.themeAccent) private var accent
+    @Environment(\.themeSelectionTint) private var selectionTint
+    let label: LocalizedStringKey; let selected: Bool; let action: () -> Void
     var body: some View {
         Button(action: action) {
             Text(label)
                 .font(Theme.Font.caption.weight(.semibold))
-                .foregroundStyle(selected ? Theme.Color.accent : Theme.Color.faint)
+                .foregroundStyle(selected ? accent : Theme.Color.faint)
                 .padding(.horizontal, Theme.Space.md).padding(.vertical, Theme.Space.sm)
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                        .fill(selected ? Theme.Color.accentMuted : Theme.Color.surface)
+                        .fill(selected ? selectionTint.opacity(AccentChoice.selectionOpacity) : Theme.Color.surface)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                        .stroke(selected ? Theme.Color.accent : Theme.Color.hairline)
+                        .stroke(selected ? accent : Theme.Color.hairline)
                 )
         }.buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
